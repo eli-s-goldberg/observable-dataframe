@@ -47,6 +47,10 @@ import {
 
 ## Quickstart
 
+Install:
+
+- `npm install git+https://github.com/eli-s-goldberg/observable-dataframe`
+
 ### Import and Create
 
 ```javascript
