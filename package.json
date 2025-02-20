@@ -1,8 +1,8 @@
 {
   "name": "observable-dataframe",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "DataFrame class for Observable framework",
-  "main": "src/index.js",
+  "main": "src/DataFrame.js",
   "type": "module",
   "repository": {
     "type": "git",
