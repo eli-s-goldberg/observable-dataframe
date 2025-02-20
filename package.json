@@ -1,0 +1,25 @@
+{
+  "name": "observable-dataframe",
+  "version": "1.0.0",
+  "description": "DataFrame class for Observable framework",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eli-s-goldberg/observable-dataframe"
+  },
+  "keywords": [
+    "observable",
+    "dataframe",
+    "d3"
+  ],
+  "author": "Eli Goldberg",
+  "license": "MIT",
+  "dependencies": {
+    "@observablehq/plot": "^0.6.0",
+    "d3": "^7.8.2",
+    "d3-require": "^1.0.0",
+    "@observablehq/inputs": "^0.6.0",
+    "jstat": "1.9.4",
+    "mathjs": "9.4.2"
+  }
+}
