@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "DataFrame class for Observable framework",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eli-s-goldberg/observable-dataframe"
