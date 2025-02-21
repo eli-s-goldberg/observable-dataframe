@@ -1,9 +1,15 @@
 {
   "name": "observable-dataframe",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "DataFrame class for Observable framework",
-  "main": "src/DataFrame.js",
+  "main": "./index.js",
+  "module": "./index.js",
   "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js"
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/eli-s-goldberg/observable-dataframe.git"
@@ -15,6 +21,15 @@
   ],
   "author": "Eli Goldberg",
   "license": "MIT",
+  "files": [
+    "index.js",
+    "DataFrame.js",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=16"
+  },
   "dependencies": {
     "@observablehq/plot": "^0.6.0",
     "d3": "^7.8.2",

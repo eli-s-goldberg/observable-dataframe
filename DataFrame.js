@@ -1,9 +1,14 @@
+// import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot?module"
+// import * as d3 from "https://cdn.jsdelivr.net/npm/d3?module"
+// import { require } from "https://cdn.jsdelivr.net/npm/d3-require?module"
+// import * as Inputs from "https://cdn.jsdelivr.net/npm/@observablehq/inputs?module"
+
 import * as Plot from "npm:@observablehq/plot"
+import * as Inputs from "npm:@observablehq/inputs"
 import * as d3 from "npm:d3"
-import { require } from "d3-require"
+import { require } from "npm:d3-require"
 const jStat = await require("jstat@1.9.4")
 const math = await require("mathjs@9.4.2")
-import * as Inputs from "npm:@observablehq/inputs"
 
 export const DATE_FORMATS = {
   ISO: "yyyy-mm-dd",
@@ -82,6 +87,12 @@ class QueryBuilder {
     return this
   }
 
+  // Is not NaN (works for numeric columns)
+  notNan(column) {
+    this._conditions.push((row) => !isNaN(row[column]))
+    return this
+  }
+
   // In array of values
   isIn(column, values) {
     const valueSet = new Set(values)
@@ -115,6 +126,73 @@ class QueryBuilder {
       this._conditions.every((condition) => condition(row))
     )
   }
+}
+
+function ensureDate(date) {
+  if (typeof date === "string") {
+    return new Date(date)
+  }
+  return date
+}
+
+// Helper to get window boundaries
+function getWindowBoundaries(timestamp, everyMs, offsetMs, closed = "left") {
+  const adjustedTime = timestamp - offsetMs
+  const windowStart = Math.floor(adjustedTime / everyMs) * everyMs + offsetMs
+  const windowEnd = windowStart + everyMs
+
+  if (closed === "left") {
+    return {
+      start: new Date(windowStart),
+      end: new Date(windowEnd - 1), // Exclude the end
+    }
+  } else if (closed === "right") {
+    return {
+      start: new Date(windowStart + 1), // Exclude the start
+      end: new Date(windowEnd),
+    }
+  }
+  return {
+    start: new Date(windowStart),
+    end: new Date(windowEnd),
+  }
+}
+
+function parseDuration(str) {
+  // Supports: years (y), months (mo), weeks (w), days (d), hours (h), minutes (m), seconds (s), milliseconds (ms)
+  const regex = /(\d+\.?\d*)\s*(y|mo|w|d|h|m|s|ms)/g
+  let ms = 0
+  let match
+  while ((match = regex.exec(str)) !== null) {
+    const value = parseFloat(match[1])
+    switch (match[2]) {
+      case "y":
+        ms += value * 365 * 86400000 // approximate: 1 year = 365 days
+        break
+      case "mo":
+        ms += value * 30 * 86400000 // approximate: 1 month = 30 days
+        break
+      case "w":
+        ms += value * 7 * 86400000
+        break
+      case "d":
+        ms += value * 86400000
+        break
+      case "h":
+        ms += value * 3600000
+        break
+      case "m":
+        ms += value * 60000
+        break
+      case "s":
+        ms += value * 1000
+        break
+      case "ms":
+        ms += value
+        break
+    }
+  }
+  return ms
 }
 
 export class DataFrame {
@@ -762,6 +840,387 @@ export class DataFrame {
     return {
       agg: (aggSpec) => this._performAggregation(groups, columns, aggSpec),
     }
+  }
+
+  groupby_dynamic(
+    indexColumn,
+    aggSpec,
+    {
+      every,
+      period = every, // window length
+      offset = "0ms",
+      include_boundaries = false,
+      closed = "left",
+      label = "left",
+      groupby_start_date = "", // "data" for first data point, or a calendar unit ("second","minute","day","month","year")
+    } = {}
+  ) {
+    // Parse dates
+    const dates = this._data[indexColumn].map((d) => ensureDate(d).getTime())
+    const minDate = Math.min(...dates)
+    const maxDate = Math.max(...dates)
+    const sortedDf = this.sort_values(indexColumn, true)
+    const offsetMs = parseDuration(offset)
+
+    // Determine calendar mode if groupby_start_date is provided and not "data"
+    let useCalendar = false,
+      floor,
+      baseDate
+    if (groupby_start_date && groupby_start_date !== "data") {
+      useCalendar = true
+      switch (groupby_start_date) {
+        case "second":
+          floor = d3.timeSecond.floor
+          break
+        case "minute":
+          floor = d3.timeMinute.floor
+          break
+        case "day":
+          floor = d3.timeDay.floor
+          break
+        case "month":
+          floor = d3.timeMonth.floor
+          break
+        case "year":
+          floor = d3.timeYear.floor
+          break
+        default:
+          floor = null
+      }
+      baseDate = floor ? floor(new Date(minDate)) : new Date(minDate)
+    } else {
+      baseDate = new Date(minDate)
+    }
+
+    // Parse "every" and "period" strings
+    let stepCount = 1,
+      stepUnit = "ms"
+    const everyMatch = every.match(/(\d+)\s*(\w+)/)
+    if (everyMatch) {
+      stepCount = +everyMatch[1]
+      stepUnit = everyMatch[2].toLowerCase()
+    }
+    let periodCount = 1,
+      periodUnit = "ms"
+    const periodMatch = period.match(/(\d+)\s*(\w+)/)
+    if (periodMatch) {
+      periodCount = +periodMatch[1]
+      periodUnit = periodMatch[2].toLowerCase()
+    }
+
+    // For calendar mode, determine step and period offset functions based on their units
+    let stepOffsetFn, periodOffsetFn
+    if (useCalendar) {
+      switch (stepUnit) {
+        case "second":
+        case "sec":
+        case "s":
+          stepOffsetFn = d3.timeSecond.offset
+          break
+        case "minute":
+        case "min":
+        case "m":
+          stepOffsetFn = d3.timeMinute.offset
+          break
+        case "hour":
+        case "hr":
+        case "h":
+          stepOffsetFn = d3.timeHour.offset
+          break
+        case "day":
+        case "d":
+          stepOffsetFn = d3.timeDay.offset
+          break
+        case "week":
+        case "w":
+          stepOffsetFn = d3.timeWeek.offset
+          break
+        case "month":
+        case "mo":
+          stepOffsetFn = d3.timeMonth.offset
+          break
+        case "year":
+        case "y":
+          stepOffsetFn = d3.timeYear.offset
+          break
+        default:
+          stepOffsetFn = d3.timeDay.offset
+      }
+      switch (periodUnit) {
+        case "second":
+        case "sec":
+        case "s":
+          periodOffsetFn = d3.timeSecond.offset
+          break
+        case "minute":
+        case "min":
+        case "m":
+          periodOffsetFn = d3.timeMinute.offset
+          break
+        case "hour":
+        case "hr":
+        case "h":
+          periodOffsetFn = d3.timeHour.offset
+          break
+        case "day":
+        case "d":
+          periodOffsetFn = d3.timeDay.offset
+          break
+        case "week":
+        case "w":
+          periodOffsetFn = d3.timeWeek.offset
+          break
+        case "month":
+        case "mo":
+          periodOffsetFn = d3.timeMonth.offset
+          break
+        case "year":
+        case "y":
+          periodOffsetFn = d3.timeYear.offset
+          break
+        default:
+          periodOffsetFn = d3.timeDay.offset
+      }
+    }
+
+    // Build windows
+    const windows = new Map()
+    if (useCalendar && stepOffsetFn && periodOffsetFn) {
+      let currentDate = baseDate
+      while (currentDate.getTime() <= maxDate) {
+        // Window boundaries using calendar offsets
+        let start = new Date(currentDate.getTime() + offsetMs)
+        let end = new Date(
+          periodOffsetFn(currentDate, periodCount).getTime() + offsetMs
+        )
+        if (closed === "left") end = new Date(end.getTime() - 1)
+        else if (closed === "right") start = new Date(start.getTime() + 1)
+        const windowKey =
+          label === "left" ? start.toISOString() : end.toISOString()
+        windows.set(windowKey, { rows: [], start, end })
+        // Advance currentDate by "every" using the stepOffsetFn
+        currentDate = stepOffsetFn(currentDate, stepCount)
+      }
+    } else {
+      // Fixed ms stepping (fallback)
+      const everyMs = parseDuration(every)
+      const periodMs = parseDuration(period)
+      let currentTime = baseDate.getTime()
+      while (currentTime <= maxDate) {
+        const startTime = currentTime + offsetMs
+        const endTime = currentTime + periodMs + offsetMs
+        let start = new Date(startTime)
+        let end = new Date(endTime)
+        if (closed === "left") end = new Date(end.getTime() - 1)
+        else if (closed === "right") start = new Date(start.getTime() + 1)
+        const windowKey =
+          label === "left" ? start.toISOString() : end.toISOString()
+        windows.set(windowKey, { rows: [], start, end })
+        currentTime += everyMs
+      }
+    }
+
+    // Assign rows to windows
+    for (let i = 0; i < sortedDf._length; i++) {
+      const ts = ensureDate(sortedDf._data[indexColumn][i]).getTime()
+      let key
+      if (useCalendar && floor && stepOffsetFn && periodOffsetFn) {
+        const d = new Date(ts)
+        const floored = floor(d)
+        let start = new Date(floored.getTime() + offsetMs)
+        let end = new Date(
+          periodOffsetFn(floored, periodCount).getTime() + offsetMs
+        )
+        if (closed === "left") end = new Date(end.getTime() - 1)
+        else if (closed === "right") start = new Date(start.getTime() + 1)
+        key = label === "left" ? start.toISOString() : end.toISOString()
+      } else {
+        const { start, end } = getWindowBoundaries(
+          ts,
+          parseDuration(every),
+          offsetMs,
+          closed
+        )
+        const adjustedEnd = new Date(start.getTime() + parseDuration(period))
+        const finalEnd =
+          closed === "left"
+            ? new Date(adjustedEnd.getTime() - 1)
+            : closed === "right"
+            ? new Date(adjustedEnd.getTime() + 1)
+            : adjustedEnd
+        key = label === "left" ? start.toISOString() : finalEnd.toISOString()
+      }
+      if (!windows.has(key)) continue
+      const row = {}
+      sortedDf._columns.forEach((col) => (row[col] = sortedDf._data[col][i]))
+      windows.get(key).rows.push(row)
+    }
+
+    // Perform aggregations per window
+    const results = []
+    for (const [windowKey, win] of windows) {
+      const res = { window: windowKey }
+      if (include_boundaries) {
+        res.window_lower_boundary = win.start.toISOString()
+        res.window_upper_boundary = win.end.toISOString()
+      }
+      Object.entries(aggSpec).forEach(([col, aggs]) => {
+        const aggList = Array.isArray(aggs) ? aggs : [aggs]
+        const agg = {
+          count: 0,
+          sum: 0,
+          min: this._types[col] === "number" ? Infinity : null,
+          max: this._types[col] === "number" ? -Infinity : null,
+          values: [],
+          firstValue: null,
+          lastValue: null,
+          uniqueValues: new Set(),
+        }
+        win.rows.forEach((row) => {
+          const val = row[col]
+          if (agg.firstValue === null) agg.firstValue = val
+          agg.lastValue = val
+          if (val != null) agg.uniqueValues.add(val) // Add this line
+          if (
+            this._types[col] === "number" &&
+            typeof val === "number" &&
+            !isNaN(val)
+          ) {
+            agg.count++
+            agg.sum += val
+            agg.min = Math.min(agg.min, val)
+            agg.max = Math.max(agg.max, val)
+          }
+          agg.values.push(val)
+        })
+        aggList.forEach((type) => {
+          switch (type) {
+            case "min":
+              if (this._types[col] === "number")
+                res[`${col}_min`] = agg.min !== Infinity ? agg.min : null
+              break
+            case "max":
+              if (this._types[col] === "number")
+                res[`${col}_max`] = agg.max !== -Infinity ? agg.max : null
+              break
+            case "mean":
+              if (this._types[col] === "number")
+                res[`${col}_mean`] = agg.count > 0 ? agg.sum / agg.count : null
+              break
+            case "sum":
+              if (this._types[col] === "number") res[`${col}_sum`] = agg.sum
+              break
+            case "first":
+              res[`${col}_first`] = agg.firstValue
+              break
+            case "last":
+              res[`${col}_last`] = agg.lastValue
+              break
+            case "nunique":
+              res[`${col}_nunique`] = agg.uniqueValues.size
+              break
+            case "concat":
+              res[`${col}_concat`] = agg.values
+                .filter((v) => v != null)
+                .join("")
+              break
+            case "nested_concat":
+              {
+                const filtered = agg.values.filter((v) => v != null)
+                const head = filtered[0] || ""
+                const tail = filtered.slice(1)
+                res[`${col}_nested_concat`] = [head, tail]
+              }
+              break
+            case "nested_concat_array":
+              {
+                const filtered = agg.values.filter((v) => v != null)
+                const groups = {}
+                filtered.forEach((v) => {
+                  groups[v] = groups[v] || []
+                  groups[v].push(v)
+                })
+                res[`${col}_nested_concat_array`] = Object.values(groups)
+              }
+              break
+            case "nested_concat_array_count":
+              {
+                const filtered = agg.values.filter((v) => v != null)
+                const groups = {}
+                filtered.forEach((v) => {
+                  groups[v] = groups[v] || []
+                  groups[v].push(v)
+                })
+                const count = Object.values(groups).reduce(
+                  (acc, arr) => acc + arr.length,
+                  0
+                )
+                res[`${col}_nested_concat_array_count`] = count
+              }
+              break
+            default:
+              throw new Error(`Unsupported aggregation type: ${type}`)
+          }
+        })
+      })
+      results.push(res)
+    }
+
+    return new DataFrame(results).sort_values("window", true)
+  }
+
+  // Get unique values for single column or multiple columns
+  unique(columns) {
+    // Handle single column case
+    if (typeof columns === "string") {
+      if (!this._data[columns]) {
+        throw new Error(`Column ${columns} not found`)
+      }
+      // Use Set to get unique values, then convert back to array
+      const values = this._data[columns]
+      const uniqueValues = [
+        ...new Set(values.filter((v) => v !== null && v !== undefined)),
+      ]
+
+      // Sort the values if they're numbers
+      return this._types[columns] === "number"
+        ? uniqueValues.filter((v) => !isNaN(v)).sort((a, b) => a - b)
+        : uniqueValues.sort()
+    }
+
+    // Handle array of columns case
+    if (!Array.isArray(columns)) {
+      throw new Error("Columns parameter must be a string or array of strings")
+    }
+
+    // Validate all columns exist
+    columns.forEach((col) => {
+      if (!this._data[col]) {
+        throw new Error(`Column ${col} not found`)
+      }
+    })
+
+    // If single column array, return single array of unique values
+    if (columns.length === 1) {
+      return this.unique(columns[0])
+    }
+
+    // Return object with unique values for each column
+    return Object.fromEntries(
+      columns.map((col) => {
+        const values = this._data[col]
+        const uniqueValues = [
+          ...new Set(values.filter((v) => v !== null && v !== undefined)),
+        ]
+
+        return [
+          col,
+          this._types[col] === "number"
+            ? uniqueValues.filter((v) => !isNaN(v)).sort((a, b) => a - b)
+            : uniqueValues.sort(),
+        ]
+      })
+    )
   }
 
   max(columns) {
