@@ -3,12 +3,10 @@
 // import { require } from "https://cdn.jsdelivr.net/npm/d3-require?module"
 // import * as Inputs from "https://cdn.jsdelivr.net/npm/@observablehq/inputs?module"
 
-import * as Plot from "npm:@observablehq/plot"
-import * as Inputs from "npm:@observablehq/inputs"
-import * as d3 from "npm:d3"
-import { require } from "npm:d3-require"
-const jStat = await require("jstat@1.9.4")
-const math = await require("mathjs@9.4.2")
+import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot?module"
+import * as Inputs from "https://cdn.jsdelivr.net/npm/@observablehq/inputs?module"
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3?module"
+import { require } from "https://cdn.jsdelivr.net/npm/d3-require?module"
 
 export const DATE_FORMATS = {
   ISO: "yyyy-mm-dd",
