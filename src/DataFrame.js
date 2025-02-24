@@ -1,8 +1,3 @@
-// import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot?module"
-// import * as d3 from "https://cdn.jsdelivr.net/npm/d3?module"
-// import { require } from "https://cdn.jsdelivr.net/npm/d3-require?module"
-// import * as Inputs from "https://cdn.jsdelivr.net/npm/@observablehq/inputs?module"
-
 import * as Plot from "npm:@observablehq/plot"
 import * as d3 from "npm:d3"
 import * as Inputs from "npm:@observablehq/inputs"
