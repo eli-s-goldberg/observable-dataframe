@@ -5,9 +5,6 @@
 
 import * as Plot from "npm:@observablehq/plot"
 import * as d3 from "npm:d3"
-import { require } from "d3-require"
-const jStat = await require("jstat@1.9.4")
-const math = await require("mathjs@9.4.2")
 import * as Inputs from "npm:@observablehq/inputs"
 
 export const DATE_FORMATS = {
