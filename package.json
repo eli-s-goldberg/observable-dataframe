@@ -1,54 +1,32 @@
 {
   "name": "observable-dataframe",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "DataFrame class for Observable framework",
-  "main": "src/index.js",
+  "main": "lib/index.js",
   "type": "module",
   "scripts": {
     "clean": "rimraf src/.observablehq/cache",
-    "build": "rimraf dist && observable build",
+    "build": "rimraf lib && observable build --output lib",
     "dev": "observable preview",
-    "deploy": "observable deploy",
-    "observable": "observable",
-    "test": "npm test"
+    "deploy": "observable deploy"
   },
   "exports": {
     ".": {
-      "import": "./src/index.js"
+      "import": "./lib/index.js"
     }
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/eli-s-goldberg/observable-dataframe.git"
-  },
-  "keywords": [
-    "observable",
-    "dataframe",
-    "d3",
-    "framework",
-    "observablehq"
-  ],
-  "author": "Eli Goldberg",
-  "license": "MIT",
   "files": [
-    "index.js",
-    "DataFrame.js",
-    "README.md"
+    "lib",
+    "README.md",
+    "lib/index.js",
+    "lib/DataFrame.js"
   ],
-  "sideEffects": false,
-  "engines": {
-    "node": ">=18"
+  "dependencies": {
+    "d3": "^7.8.2",
+    "rimraf": "^5.0.5"
   },
   "devDependencies": {
-    "@observablehq/inputs": "^0.6.0",
-    "@observablehq/plot": "^0.6.0",
-    "d3": "^7.8.2",
-    "@observablehq/framework": "^1.9.0",
-    "rimraf": "^5.0.5"
-  },
-  "Dependencies": {
-    "d3": "^7.8.2",
-    "rimraf": "^5.0.5"
+    "@observablehq/framework": "^1.9.0"
   },
   "publishConfig": {
     "access": "public"
