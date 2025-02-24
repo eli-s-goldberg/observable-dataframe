@@ -1,6 +1,6 @@
 {
   "name": "observable-dataframe",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "DataFrame class for Observable framework",
   "type": "module",
   "main": "src/index.js",
