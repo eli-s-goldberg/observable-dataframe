@@ -1,28 +1,39 @@
 {
   "name": "observable-dataframe",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "DataFrame class for Observable framework",
-  "main": "index.js",
   "type": "module",
-  "scripts": {
-    "clean": "rimraf src/.observablehq/cache",
-    "build": "rimraf lib && observable build --output .",
-    "dev": "observable preview",
-    "deploy": "observable deploy"
-  },
-  "exports": {
-    ".": {
-      "import": "./index.js"
-    }
-  },
-  "dependencies": {
-    "d3": "^7.8.2",
-    "rimraf": "^5.0.5"
-  },
-  "devDependencies": {
-    "@observablehq/framework": "^1.9.0"
-  },
+  "main": "index.js",
   "publishConfig": {
     "access": "public"
+  },
+  "files": [
+    "dist/**/*.js",
+    "src/**/*.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eli-s-goldberg/observable-dataframe"
+  },
+  "jsdelivr": "dist/DataFrame.js",
+  "unpkg": "dist/DataFrame.js",
+  "dependencies": {
+    "d3": "^7.8.2",
+    "@observablehq/framework": "^1.9.0"
+  },
+  "engines": {
+    "node": ">=14.5.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.0.1",
+    "eslint": "^8.27.0",
+    "exceljs": "^4.3.0",
+    "mocha": "^10.1.0",
+    "rollup": "^3.2.5",
+    "rollup-plugin-terser": "^7.0.2"
+  },
+  "exports": {
+    "umd": "./dist/DataFrame.js",
+    "default": "./src/DataFrame.js"
   }
 }

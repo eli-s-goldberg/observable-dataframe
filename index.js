@@ -1,1 +1,1 @@
-export { DataFrame, DATE_FORMATS, comparePerformance } from "./DataFrame.js"
+export { DataFrame, DATE_FORMATS, comparePerformance } from "./src/DataFrame.js"
