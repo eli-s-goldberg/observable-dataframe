@@ -12,7 +12,7 @@
   },
   "exports": {
     ".": {
-      "import": "index.js"
+      "import": "./index.js"
     }
   },
   "dependencies": {
