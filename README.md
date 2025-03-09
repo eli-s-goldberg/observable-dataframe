@@ -10,666 +10,724 @@ With Claude and OpenAI these days, it's easier than ever to _learn_, which is ex
 
 ---
 
+# Observable DataFrame
+
+A JavaScript implementation of a pandas-like DataFrame for data manipulation and analysis. This library provides a Python/pandas-like experience in JavaScript, making data transformation and analysis more intuitive.
+
+## Installation
+
+```bash
+npm install observable-dataframe
+```
+
 ## Table of Contents
 
-1. [Quickstart](#quickstart)
-   1. [Import and Create](#import-and-create)
-   2. [Basic Inspection](#basic-inspection)
-   3. [Selection & Filtering](#selection--filtering)
-   4. [Statistical Analysis](#statistical-analysis)
-   5. [Group Operations](#group-operations)
-2. [Key Methods Reference](#key-methods-reference)
-   1. [Basic Operations](#basic-operations)
-   2. [Data Access & Transformation](#data-access--transformation)
-   3. [Statistics](#statistics)
-   4. [Grouping](#grouping)
-   5. [Iteration Methods](#iteration-methods)
-3. [Advanced Features](#advanced-features)
-   1. [Performance Comparison](#performance-comparison)
-   2. [Concurrent Processing](#concurrent-processing)
-   3. [Correlation Plot](#corrplot)
-4. [Method Breakdown](#method-breakdown)
+1. [Basic Usage](#basic-usage)
+   - [Creating DataFrames](#creating-dataframes)
+   - [Viewing Data](#viewing-data)
+   - [Basic Operations](#basic-operations)
+2. [Data Manipulation](#data-manipulation)
+   - [Column Types and Transformations](#column-types-and-transformations)
+   - [Adding or Modifying Columns](#adding-or-modifying-columns)
+   - [Filtering Data](#filtering-data)
+   - [Sorting Data](#sorting-data)
+3. [Aggregation Operations](#aggregation-operations)
+   - [Basic Aggregation](#basic-aggregation)
+   - [Grouping Data](#grouping-data)
+   - [Time Window Aggregation](#time-window-aggregation)
+4. [Statistical Analysis](#statistical-analysis)
+   - [Descriptive Statistics](#descriptive-statistics)
+   - [Correlation Analysis](#correlation-analysis)
+5. [Advanced Features](#advanced-features)
+   - [Concurrent Processing](#concurrent-processing)
+   - [Iteration Methods](#iteration-methods)
+   - [Mathematical Operations](#mathematical-operations)
+6. [Method Reference](#method-reference)
 
----
+## Basic Usage
 
-```js
-// Run code
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm"
-import { require } from "d3-require"
-const jStat = await require("jstat@1.9.4")
-const math = await require("mathjs@9.4.2")
-import {
-  generateTestData,
-  runTest,
-  comparePerformance,
-} from "./components/DataFrame.js"
-```
-
-## Quickstart
-
-Install:
-
-- `npm install git+https://github.com/eli-s-goldberg/observable-dataframe`
-
-### Import and Create
+### Creating DataFrames
 
 ```javascript
-// Show code
-import { DataFrame } from "./components/DataFrame.js"
-const nations = await FileAttachment("./data/nations.csv").csv({ typed: true })
-const df = new DataFrame(nations)
+import { DataFrame } from "observable-dataframe";
+
+// From array of objects (CSV-like data)
+const data = [
+  { name: "Alice", age: 30, city: "New York" },
+  { name: "Bob", age: 25, city: "Los Angeles" },
+  { name: "Charlie", age: 35, city: "Chicago" },
+];
+const df = new DataFrame(data);
+
+// From CSV file (using FileAttachment in Observable)
+const csvData = await FileAttachment("./data/mydata.csv").csv();
+const df = new DataFrame(csvData);
+
+// From column-based data
+const columnData = {
+  name: ["Alice", "Bob", "Charlie"],
+  age: [30, 25, 35],
+  city: ["New York", "Los Angeles", "Chicago"],
+};
+const df = new DataFrame(columnData);
 ```
 
-```js
-// Run code
-import { DataFrame } from "./components/DataFrame.js"
-const nations = await FileAttachment("./data/nations.csv").csv({ typed: true })
-const df = new DataFrame(nations)
-```
-
-### Basic Inspection
+### Viewing Data
 
 ```javascript
-// Show code
-view(df)
-view(df.table())
-view(df.describe().table())
+// Get first few rows
+df.head(3);
+
+// Get last few rows
+df.tail(3);
+
+// Basic view (in Observable)
+df.table();
+
+// Print with options
+df.print({ max_rows: 10, precision: 2 });
 ```
-
-Let's view the data and the table in its entirety.
-
-```js
-// Run code
-view(df)
-view(df.table())
-```
-
-Let's use the describe function and turn that into a table.
-
-```js
-view(df.describe().table())
-```
-
----
-
-## Selection & Filtering
-
-```javascript
-// Show code
-const highIncome = df
-  .query("row.income > 20000")
-  .sort_values("population", false)
-  .head(5)
-
-view(highIncome.table())
-```
-
-```js
-// Run code
-const highIncome = df
-  .query("row.income > 20000")
-  .sort_values("population", false)
-  .head(5)
-
-view(highIncome.table())
-```
-
-Cool. That's great, but there are more than one entry per country, as it's a time series. Let's do a little pythonic manipulation to get just the last pop for each country. Here's the basic way:
-
-```javascript
-// Show code
-const highIncomeUnique = []
-for (const [key, group] of df.groupby("name", { iterable: true })) {
-  const data = group.dropna({ axis: 0, subset: ["population"] })
-  const lastYear = d3.max(data._data.year)
-  const lastYearData = data.query(`row.year === ${lastYear}`)
-  highIncomeUnique.push({
-    ...key,
-    year: lastYear,
-    income: lastYearData._data.income[0],
-    population: lastYearData._data.population[0],
-    region: lastYearData._data.region[0],
-  })
-}
-const highIncomeUniquedf = new DataFrame(highIncomeUnique).sort_values(
-  "population",
-  false
-)
-view(highIncomeUniquedf.table())
-```
-
-```js
-// Run code
-const highIncomeUnique = []
-for (const [key, group] of df.groupby("name", { iterable: true })) {
-  const data = group.dropna({ axis: 0, subset: ["population"] })
-  const lastYear = d3.max(data._data.year)
-  const lastYearData = data.query(`row.year === ${lastYear}`)
-  highIncomeUnique.push({
-    ...key,
-    year: lastYear,
-    income: lastYearData._data.income[0],
-    population: lastYearData._data.population[0],
-    region: lastYearData._data.region[0],
-  })
-}
-const highIncomeUniquedf = new DataFrame(highIncomeUnique).sort_values(
-  "population",
-  false
-)
-view(highIncomeUniquedf.table())
-```
-
-Here’s an `agg` version, because it's way nicer to write.
-
-```javascript
-// Show code
-const highIncomeUnique2 = df
-  .dropna({ axis: 0, subset: ["population"] })
-  .groupby(["name"])
-  .agg({
-    year: ["last"],
-    income: ["last"],
-    population: ["last"],
-    region: ["last"],
-  })
-  .query("row.income > 350")
-  .sort_values("population", false)
-  .head(20)
-
-view(highIncomeUnique2.table())
-```
-
-```js
-// Run code
-const highIncomeUnique2 = df
-  .dropna({ axis: 0, subset: ["population"] })
-  .groupby(["name"])
-  .agg({
-    year: ["last"],
-    income: ["last"],
-    population: ["last"],
-    region: ["last"],
-  })
-  .query("row.income > 350")
-  .sort_values("population", false)
-  .head(20)
-
-view(highIncomeUnique2.table())
-```
-
----
-
-## Statistical Analysis
-
-```javascript
-// Show code
-view(df.corr("income", "population"))
-
-const width_plot = 600
-view(
-  df.corrPlot({
-    width: width_plot,
-    height: (width_plot * 240) / 300,
-    marginTop: 100,
-  })
-)
-```
-
-```js
-// Run code
-view(df.corr("income", "population"))
-
-const width_plot = 600
-view(
-  df.corrPlot({
-    width: width_plot,
-    height: (width_plot * 240) / 300,
-    marginTop: 100,
-  })
-)
-```
-
-### Group Operations
-
-```javascript
-// Show code
-const incomeSummary = df.groupby(["name", "region"]).agg({
-  population: ["min", "mean", "max"],
-  lifeExpectancy: ["mean", "max"],
-})
-
-view(incomeSummary.table())
-```
-
-```js
-// Run code
-const incomeSummary = df.groupby(["name", "region"]).agg({
-  population: ["min", "mean", "max"],
-  lifeExpectancy: ["mean", "max"],
-})
-
-view(incomeSummary.table())
-```
-
----
-
-## Key Methods Reference
 
 ### Basic Operations
 
 ```javascript
-df.head(n)
-df.tail(n)
-df.print()
-df.table()
+// Select specific columns
+df.select(["name", "age"]);
+
+// Basic information
+df.describe().table();
+
+// Get raw data
+df.to_data();
 ```
 
-### Data Access & Transformation
+## Data Manipulation
+
+### Column Types and Transformations
 
 ```javascript
-df.select(["colA", "colB"])
-df.query("row.colA > 100")
-df.sort_values("colA", true)
-df.fillna(0)
-df.apply("colA", (x) => x * 2)
-df.map("colA", { oldValue: "newValue" })
+// Set types for columns
+df.setType("age", "number");
+df.setTypes({ age: "number", timestamp: "date" });
+
+// Apply function to a column
+df.apply("name", (name) => name.toUpperCase());
+
+// Map values in a column
+df.map("status", { A: "Active", I: "Inactive" });
 ```
 
-### Statistics
+### Adding or Modifying Columns
 
 ```javascript
-df.describe()
-df.corr("colA", "colB")
-df.corrMatrix()
-df.corrPlot({ width: 500, height: 500 })
+// Add new columns with math operations
+df.with_columns({
+  // Using functions that work on each row
+  adult: (row) => (row.age >= 18 ? "Yes" : "No"),
+  name_length: (row) => row.name.length,
+
+  // Using simple calculations
+  age_in_months: (row) => row.age * 12,
+
+  // Adding constant values
+  cohort: "2023",
+});
+
+// Another way to add columns
+df.assign("adult", (row) => (row.age >= 18 ? "Yes" : "No"));
 ```
 
-### Grouping
+#### Advanced Column Transformations
+
+The `.with_columns()` method is powerful for data transformation and can be combined with other methods for complex workflows:
 
 ```javascript
-df.groupby(["colA"]).agg({ colB: ["min", "max", "mean"] })
-df.concurrentGroupBy(["colA", "colC"], { colB: ["min", "mean"] })
+// Load dataset of medical events
+const events_df = new DataFrame(medical_events);
+
+// Calculate derived risk measures
+const risk_df = events_df
+  .filter()
+  .gt("baseline_measurement", 0) // Filter for valid baseline
+  .execute()
+  .with_columns({
+    // Calculate absolute risk
+    absolute_risk: (row) => (row.events / row.population) * 100,
+
+    // Calculate risk ratios compared to baseline
+    risk_ratio: (row) =>
+      row.events /
+      row.population /
+      (row.baseline_events / row.baseline_population),
+
+    // Flag high-risk events
+    high_risk: (row) =>
+      row.events / row.population > 0.05 ? "High" : "Normal",
+
+    // Calculate risk-adjusted costs
+    adjusted_cost: (row) => row.cost * Math.sqrt(row.risk_score),
+  });
+
+// Chain with groupby for risk stratification
+const risk_strata = risk_df
+  .groupby(["region", "high_risk"])
+  .agg({
+    absolute_risk: ["mean", "max"],
+    adjusted_cost: ["sum", "mean"],
+  })
+  .with_columns({
+    // Add cost per risk unit
+    cost_per_risk_unit: (row) => row.adjusted_cost_sum / row.absolute_risk_mean,
+  });
+```
+
+### Filtering Data
+
+The DataFrame offers multiple ways to filter data:
+
+#### Using filter() method with chainable conditions
+
+```javascript
+// Filter with multiple conditions
+const filteredData = df
+  .filter()
+  .gt("age", 25) // age > 25
+  .lt("income", 100000) // income < 100000
+  .neq("status", "Inactive") // status != "Inactive"
+  .execute(); // Don't forget to execute!
+
+// More complex filtering
+const results = df
+  .filter()
+  .lte("P Value", 0.05) // P Value <= 0.05
+  .lte("Absolute Prevalence DiD", 0) // Correctly signed
+  .notNull("Prevalence Measurement Period (Comparator)") // Not null values
+  .execute()
+  .with_columns({
+    // Add calculated columns to filtered results
+    absolute_events: (row) => row["Prevalence"] * population,
+    events_prevented: (row) =>
+      row["Prevalence"] * population -
+      row["Prevalence"] * population * (1 + row["Relative DiD"]),
+  });
+```
+
+#### Available filter conditions
+
+```javascript
+// Comparison operators
+df.filter()
+  .gt("column", value) // Greater than
+  .lt("column", value) // Less than
+  .gte("column", value) // Greater than or equal
+  .lte("column", value) // Less than or equal
+  .eq("column", value) // Equal to
+  .neq("column", value) // Not equal to
+  .between("column", lower, upper) // Between values (inclusive)
+
+  // Null/NaN handling
+  .isNull("column") // Is null or undefined
+  .notNull("column") // Is not null or undefined
+  .notNan("column") // Is not NaN (for numeric columns)
+
+  // Set membership
+  .isIn("column", [values]) // Value is in array
+
+  // Custom conditions
+  .where((row) => customLogic(row)) // Custom function
+
+  // Execute the filter
+  .execute();
+```
+
+#### Using query() with expression strings
+
+```javascript
+// Simple querying with strings
+df.query("row.age > 30");
+df.query("row.city === 'New York' && row.age < 40");
+```
+
+#### Using loc() with functions
+
+```javascript
+// Filtering with a function
+df.loc((row) => row.age > 30 && row.city.startsWith("New"));
+```
+
+### Sorting Data
+
+```javascript
+// Sort by a column (ascending)
+df.sort_values("age");
+
+// Sort by a column (descending)
+df.sort_values("age", false);
+
+// Sort by multiple columns
+df.sort_values(["city", "age"]);
+
+// Sort by multiple columns with different directions
+df.sort_values(["city", "age"], [true, false]); // city ascending, age descending
+```
+
+## Aggregation Operations
+
+### Basic Aggregation
+
+```javascript
+// Sum of a column
+df.sum("age");
+
+// Mean of a column
+df.mean("age");
+
+// Multiple column aggregation
+df.sum(["age", "income"]);
+df.mean(["age", "income"]);
+
+// Get unique values
+df.unique("city");
+df.unique(["city", "status"]);
+
+// Count values
+df.value_counts("city");
+```
+
+### Grouping Data
+
+```javascript
+// Basic groupby with aggregation
+const summary = df.groupby(["city"]).agg({
+  age: ["min", "mean", "max", "sum"],
+  income: "mean",
+});
+
+// Multiple groupby columns
+const detailedSummary = df.groupby(["city", "gender"]).agg({
+  age: ["min", "max", "mean"],
+  income: ["mean", "sum"],
+});
+
+// Other aggregation types
+const aggResult = df.groupby(["city"]).agg({
+  status: ["first", "last", "nunique"], // first/last value, number of unique values
+  name: ["concat"], // concatenate strings
+});
+
+// Iterating through groups
+for (const [key, group] of df.groupby("city", { iterable: true })) {
+  console.log(`City: ${key.city}`);
+  console.log(`Average age: ${group.mean("age")}`);
+}
+```
+
+#### Available Aggregation Functions
+
+Both `groupby()` and `groupby_dynamic()` support these aggregation functions:
+
+| Aggregation                   | Description                | Works With      |
+| ----------------------------- | -------------------------- | --------------- |
+| `"min"`                       | Minimum value              | Numeric columns |
+| `"max"`                       | Maximum value              | Numeric columns |
+| `"mean"`                      | Average value              | Numeric columns |
+| `"sum"`                       | Sum of values              | Numeric columns |
+| `"first"`                     | First value in group       | Any column type |
+| `"last"`                      | Last value in group        | Any column type |
+| `"nunique"`                   | Count of unique values     | Any column type |
+| `"concat"`                    | Concatenate string values  | String columns  |
+| `"nested_concat"`             | Returns [head, tail] array | Any column type |
+| `"nested_concat_array"`       | Groups identical values    | Any column type |
+| `"nested_concat_array_count"` | Count of identical values  | Any column type |
+
+Example using each aggregation type:
+
+```javascript
+// Create a DataFrame with various data types
+const sales_df = new DataFrame([
+  {
+    date: "2023-01-01",
+    region: "North",
+    product: "A",
+    quantity: 10,
+    price: 25.5,
+    tags: "sale,featured",
+  },
+  {
+    date: "2023-01-02",
+    region: "North",
+    product: "B",
+    quantity: 15,
+    price: 19.99,
+    tags: "new",
+  },
+  {
+    date: "2023-01-01",
+    region: "South",
+    product: "A",
+    quantity: 8,
+    price: 24.99,
+    tags: "sale",
+  },
+  {
+    date: "2023-01-02",
+    region: "South",
+    product: "C",
+    quantity: 20,
+    price: 34.5,
+    tags: "featured",
+  },
+  {
+    date: "2023-01-03",
+    region: "North",
+    product: "A",
+    quantity: 12,
+    price: 25.0,
+    tags: "sale",
+  },
+]);
+
+// Use various aggregation types
+const aggregated = sales_df.groupby(["region", "product"]).agg({
+  quantity: ["min", "max", "mean", "sum"], // Numeric aggregations
+  price: ["mean", "min"], // More numeric aggregations
+  date: ["first", "last"], // First/last values
+  tags: ["nunique", "concat"], // Count unique, concatenate strings
+  product: ["nested_concat", "nested_concat_array"], // Nested aggregations
+});
+
+/*
+Results include:
+- quantity_min, quantity_max, quantity_mean, quantity_sum
+- price_mean, price_min
+- date_first, date_last
+- tags_nunique, tags_concat
+- product_nested_concat, product_nested_concat_array
+*/
+```
+
+The `_performAggregation` method internally handles these aggregation types by:
+
+1. Initializing aggregation accumulators for each group
+2. Processing each row and updating the accumulators
+3. Calculating final results based on accumulated values
+4. Formatting the output as a new DataFrame
+
+### Time Window Aggregation
+
+The `groupby_dynamic()` method provides powerful time-series analysis capabilities by grouping data into time windows.
+
+```javascript
+// Time-based window aggregation
+const timeSeriesDf = df.groupby_dynamic(
+  "timestamp", // Column with timestamps
+  {
+    value: ["mean", "sum"], // Columns to aggregate
+  },
+  {
+    every: "1d", // Window step size
+    period: "7d", // Window size
+    offset: "0h", // Time offset
+    closed: "left", // Window boundary inclusion
+    label: "left", // Window labeling strategy
+    include_boundaries: true, // Include window bounds in output
+    groupby_start_date: "day", // Align windows to calendar units
+  }
+);
+```
+
+#### Dynamic Time Window Example
+
+Here's a real-world example analyzing sensor data with rolling time windows:
+
+```javascript
+// Sensor data with timestamps
+const sensor_df = new DataFrame(sensorData);
+
+// Set column types
+sensor_df.setTypes({
+  timestamp: "date",
+  temperature: "number",
+  humidity: "number",
+  pressure: "number",
+});
+
+// Calculate hourly rolling windows with 10-minute steps
+const hourly_stats = sensor_df.groupby_dynamic(
+  "timestamp", // Time column
+  {
+    temperature: ["min", "mean", "max"],
+    humidity: ["mean", "max"],
+    pressure: ["mean"],
+  },
+  {
+    every: "10m", // Step forward every 10 minutes
+    period: "1h", // Use 1 hour windows
+    offset: "0m", // No offset
+    closed: "left", // Include left boundary, exclude right
+    label: "left", // Label windows by start time
+    include_boundaries: true,
+    groupby_start_date: "minute", // Align to calendar minutes
+  }
+);
+
+// Calculate day-over-day changes using window aggregation
+const daily_changes = sensor_df
+  .groupby_dynamic(
+    "timestamp",
+    {
+      temperature: ["mean", "first", "last"],
+      humidity: ["mean"],
+    },
+    {
+      every: "1d", // Daily windows
+      period: "1d", // 1 day window size
+    }
+  )
+  .with_columns({
+    // Calculate temperature change
+    temp_change: (row) => row.temperature_last - row.temperature_first,
+
+    // Calculate vs 24 hours before (if data available)
+    day_over_day_temp: (row) => {
+      // Logic to compare with previous day's data
+      return row.temperature_mean - previous_day_temp;
+    },
+  });
+```
+
+## Statistical Analysis
+
+### Descriptive Statistics
+
+```javascript
+// Get detailed statistics
+const stats = df.describe();
+
+// Access specific statistics
+const mean = df.mean("age");
+const maximum = df.max("age");
+const minimum = df.min("age");
+
+// Percentiles
+const median = df.percentile(0.5, "age");
+const quartiles = df.percentile(0.25, ["age", "income"]);
+```
+
+### Correlation Analysis
+
+```javascript
+// Correlation between two columns
+const correlation = df.corr("age", "income");
+
+// Correlation matrix for all numeric columns
+const corrMatrix = df.corrMatrix();
+
+// Visualize correlation matrix
+const plot = df.corrPlot({
+  width: 600,
+  height: 600,
+  marginTop: 100,
+  scheme: "blues", // Color scheme
+  decimals: 2, // Decimal places to display
+});
+```
+
+## Advanced Features
+
+### Concurrent Processing
+
+```javascript
+// Regular groupby
+const regularResult = df.groupby(["state", "city"]).agg({
+  population: ["min", "mean", "max"],
+  income: "mean",
+});
+
+// Concurrent groupby for larger datasets
+const concurrentResult = await df.concurrentGroupBy(["state", "city"], {
+  population: ["min", "mean", "max"],
+  income: "mean",
+});
+
+// Compare performance
+const perfResults = await comparePerformance();
 ```
 
 ### Iteration Methods
 
 ```javascript
-for (const [idx, row] of df.iterrows()) {
-  /* ... */
+// Iterate row by row with index
+for (const [index, row] of df.iterrows()) {
+  console.log(`Row ${index}:`, row);
 }
-for (const tuple of df.itertuples("Record")) {
-  /* ... */
+
+// Iterate with named tuples
+for (const row of df.itertuples("Record")) {
+  console.log(`${row.name} is ${row.age} years old`);
 }
-for (const [col, values] of df.items()) {
-  /* ... */
+
+// Iterate column by column
+for (const [column, values] of df.items()) {
+  console.log(`Column ${column}:`, values);
 }
+
+// Direct iteration over rows
 for (const row of df) {
-  /* ... */
+  console.log(row);
 }
 ```
 
----
-
-### describe()
-
-Generate descriptive statistics for all columns. Returns a DataFrame containing statistics like count, mean, std, min/max, and percentiles for numeric columns, and category distributions for non-numeric columns.
+### Mathematical Operations
 
 ```javascript
-// Get basic statistics
-const stats = df.describe()
+// Add a scalar
+const df2 = df.add(10); // Add 10 to all numeric columns
 
-// Print the statistics in a formatted way
-stats.print()
+// Subtract a scalar
+const df3 = df.sub(5); // Subtract 5 from all numeric columns
 
-// Access category distributions for non-numeric columns
-const categories = stats._data.categories
+// Multiply
+const df4 = df.mul(2); // Double all numeric columns
 
-// Render as an HTML table using Observable's Inputs.table
-Inputs.table(stats.print())
+// Divide
+const df5 = df.div(100); // Divide all numeric columns by 100
+
+// DataFrame math - add two DataFrames
+const dfSum = df1.add(df2);
 ```
 
-_Statistics provided:_
+## Method Reference
 
-- **Numeric columns:** count, mean, std, min, 25%, 50%, 75%, max
-- **Categorical columns:** count, unique values, top values, frequency, category distribution
+- **Basic Operations**
 
-### percentile(p[, columns])
+  - `constructor(data, options)` - Create a new DataFrame
+  - `head(n)` - Get first n rows
+  - `tail(n)` - Get last n rows
+  - `select(columns)` - Select specified columns
+  - `print(options)` - Format data for printing
+  - `table(options)` - Return an HTML table view
+  - `to_data()` - Convert to array of objects
 
-Calculate percentile value(s) for numeric columns.
+- **Data Manipulation**
+
+  - `filter()` - Chain filtering operations
+  - `loc(condition)` - Filter with a function
+  - `query(expr)` - Filter with a string expression
+  - `setType(column, type)` - Set column type
+  - `setTypes(typeMap)` - Set multiple column types
+  - `with_columns(columnExpressions)` - Add/modify columns
+  - `assign(columnName, values)` - Add a new column
+  - `drop(columns)` - Remove columns
+  - `dropna(options)` - Remove rows with missing values
+  - `fillna(value)` - Replace missing values
+  - `rename(columnMap)` - Rename columns
+  - `apply(column, func)` - Apply function to column
+  - `map(column, mapper)` - Map values in column
+  - `sort_values(columns, ascending)` - Sort data
+  - `merge(other, options)` - Join two DataFrames
+
+- **Aggregation**
+
+  - `groupby(columns, options)` - Group by columns
+  - `groupby_dynamic(timeColumn, aggSpec, options)` - Time-based grouping
+  - `concurrentGroupBy(columns, aggregations)` - Parallel grouping
+  - `unique(columns)` - Get unique values
+  - `mean(columns)` - Calculate mean
+  - `sum(columns)` - Calculate sum
+  - `max(columns)` - Get maximum values
+  - `min(columns)` - Get minimum values
+  - `value_counts(column)` - Count unique values
+
+- **Statistics**
+
+  - `describe()` - Generate descriptive statistics
+  - `percentile(p, columns)` - Calculate percentiles
+  - `corr(col1, col2)` - Calculate correlation
+  - `corrMatrix()` - Generate correlation matrix
+  - `corrPlot(options)` - Visualize correlation matrix
+
+- **Math Operations**
+
+  - `add(other)` - Add scalar or DataFrame
+  - `sub(other)` - Subtract scalar or DataFrame
+  - `mul(other)` - Multiply by scalar or DataFrame
+  - `div(other)` - Divide by scalar or DataFrame
+
+- **Iteration**
+
+  - `iterrows()` - Iterate over [index, row] pairs
+  - `itertuples(name)` - Iterate over row tuples
+  - `items()` - Iterate over [column, values] pairs
+  - `[Symbol.iterator]()` - Direct iteration over rows
+
+- **Other**
+  - `append(row)` - Add a single row
+  - `extend(rows)` - Add multiple rows
+  - `terminate()` - Clean up workers
+
+## Real-World Examples
+
+### Data Processing & Analysis
 
 ```javascript
-// 75th percentile of age
-const p75 = df.percentile(0.75, "age")
+import { DataFrame } from "observable-dataframe";
 
-// Multiple columns
-const quartiles = df.percentile(0.25, ["age", "salary"])
+// Load data
+const va_data = await FileAttachment("./data/veterans_data.csv").csv();
+const va_df = new DataFrame(va_data);
+
+// Ensure numeric columns
+va_df.setType("Veterans", "number");
+
+// Create derivative columns
+va_df.with_columns({
+  belle_targets: (row) => row.Veterans * 0.5,
+  remaining_vets: (row) => row.Veterans * 0.5,
+});
+
+// Aggregate by state
+const state_summary = va_df.groupby(["Abbreviation"]).agg({
+  Veterans: "sum",
+  belle_targets: "sum",
+  remaining_vets: "sum",
+});
+
+// Get total for further calculations
+const veterans_sum = state_summary.sum(["Veterans_sum"]) / 2;
 ```
 
----
-
-## Data Manipulation
-
-### fillna(value)
-
-Fill missing values in the DataFrame.
+### Healthcare Data Analysis
 
 ```javascript
-const filled = df.fillna(0)
+// Load and prepare study data
+const study_df = new DataFrame(clinical_data);
+
+// Calculate derived metric
+const engaged_population =
+  (((population * at_risk_fraction) / 100) * engagement_rate) / 100;
+
+// Filter for significant results and add impact metrics
+const significant_results = study_df
+  .filter()
+  .lte("P Value", 0.05) // Statistically significant
+  .lte("Absolute Prevalence DiD", 0) // Correctly signed effect
+  .notNull("Prevalence Measurement Period (Comparator)") // Valid data
+  .execute()
+  .with_columns({
+    // Calculate impact metrics
+    absolute_events: (row) =>
+      row["Prevalence Measurement Period (Comparator)"] * engaged_population,
+
+    absolute_events_with_intervention: (row) =>
+      row["Prevalence Measurement Period (Comparator)"] *
+      engaged_population *
+      (1 + row["Relative DiD"]),
+
+    events_prevented: (row) =>
+      row["Prevalence Measurement Period (Comparator)"] * engaged_population -
+      row["Prevalence Measurement Period (Comparator)"] *
+        engaged_population *
+        (1 + row["Relative DiD"]),
+  });
 ```
-
-### apply(column, func)
-
-Apply a function to a column.
-
-```javascript
-const df2 = df.apply("name", (name) => name.toUpperCase())
-```
-
-### map(column, mapper)
-
-Map values in a column using a mapping object.
-
-```javascript
-const df2 = df.map("status", {
-  A: "Active",
-  I: "Inactive",
-})
-```
-
-### drop() & dropna()
-
-Remove specified columns or rows with missing values.
-
-```javascript
-const df2 = df.drop(["temp_col", "unused_col"])
-```
-
-```javascript
-const df2 = df.dropna({ axis: 0, subset: ["population"] })
-```
-
-### rename(columnMap)
-
-Rename columns using a mapping object.
-
-```javascript
-const df2 = df.rename({
-  old_name: "new_name",
-  prev_col: "next_col",
-})
-```
-
-### assign(columnName, values)
-
-Add a new column.
-
-```javascript
-// Add column with array
-const df2 = df.assign("new_col", [1, 2, 3])
-
-// Add column with function
-const df3 = df.assign("bmi", (row) => row.weight / (row.height * row.height))
-```
-
-### merge(other[, options])
-
-Merge two DataFrames.
-
-```javascript
-const merged = df1.merge(df2, {
-  on: "id", // Join on same column name
-  how: "inner", // Join type
-  left_on: "id_1", // Custom left join column
-  right_on: "id_2", // Custom right join column
-})
-```
-
----
-
-## Mathematical Operations
-
-### add(other)
-
-Add scalar or DataFrame to numeric columns.
-
-```javascript
-// Add scalar
-const df2 = df.add(10)
-
-// Add DataFrame
-const df3 = df1.add(df2)
-```
-
-### sub(other)
-
-Subtract scalar or DataFrame from numeric columns.
-
-```javascript
-const df2 = df.sub(5)
-```
-
-### mul(other)
-
-Multiply numeric columns by scalar or DataFrame.
-
-```javascript
-const df2 = df.mul(2)
-```
-
-### div(other)
-
-Divide numeric columns by scalar or DataFrame.
-
-```javascript
-const df2 = df.div(100)
-```
-
----
-
-## Advanced Features
-
-### Performance Comparison
-
-Here's a comparison of regular and concurrent groupby performance on different dataset sizes. Spoiler: concurrency overhead is real, so if your DataFrame is tiny, you’re just wasting CPU cycles. However, we do see some good speedup for larger dataframes. On my computer (M2 Air), I can groupby aggregate 10M rows in ~1.2 seconds or less.
-
-```javascript
-const results = await comparePerformance()
-view(results.table())
-```
-
-```js
-// Run code
-const results = await comparePerformance()
-view(results.table())
-```
-
-### Concurrent Processing
-
-```javascript
-const regularGroupBy = df.groupby(["name", "region"]).agg({
-  population: ["min", "mean", "max"],
-})
-
-const concurrentResult = await df.concurrentGroupBy(["name", "region"], {
-  population: ["min", "mean", "max"],
-})
-```
-
-```js
-// Run code
-const regularGroupBy = df.groupby(["name", "region"]).agg({
-  population: ["min", "mean", "max"],
-})
-
-const concurrentResult = await df.concurrentGroupBy(["name", "region"], {
-  population: ["min", "mean", "max"],
-})
-```
-
-### corrPlot
-
-```javascript
-// Show code
-const plot = df.corrPlot({
-  width: 600,
-  height: 480,
-  marginTop: 100,
-  scheme: "blues",
-  decimals: 2,
-})
-const corrMatrix = df.corrMatrix()
-const corrData = corrMatrix._data
-```
-
-```js
-// Run code
-const plot = df.corrPlot({
-  width: 600,
-  height: 480,
-  marginTop: 100,
-  scheme: "blues",
-  decimals: 2,
-})
-const corrMatrix = df.corrMatrix()
-const corrData = corrMatrix._data
-```
-
----
-
-## Method Breakdown
-
-- **constructor(data, options)**  
-  Initialize a new DataFrame from an array of objects or column-based data.
-
-- **append(row)**  
-  Append a single row to the DataFrame.
-
-- **extend(rows)**  
-  Append multiple rows at once.
-
-- **head(n)**  
-  Return the first _n_ rows.
-
-- **tail(n)**  
-  Return the last _n_ rows.
-
-- **select(columns)**  
-  Return a new DataFrame with only the specified columns.
-
-- **filter()**  
-  Return a QueryBuilder instance for filtering rows.
-
-- **loc(condition)**  
-  Filter rows using a condition function.
-
-- **query(expr)**  
-  Filter rows based on a string expression.
-
-- **groupby(columns, options)**  
-  Group rows by one or more columns; supports aggregation.
-
-- **max(columns)**  
-  Get the maximum value(s) from a column or columns.
-
-- **min(columns)**  
-  Get the minimum value(s) from a column or columns.
-
-- **table(options)**  
-  Return the DataFrame as an HTML table (using Observable's Inputs).
-
-- **to_data()**  
-  Convert DataFrame data to an array of objects.
-
-- **sort_values(columns, ascending)**  
-  Sort the DataFrame by the specified columns.
-
-- **corr(col1, col2)**  
-  Calculate the correlation coefficient between two columns.
-
-- **corrMatrix()**  
-  Generate a correlation matrix for numeric columns.
-
-- **describe()**  
-  Generate descriptive statistics for numeric and non-numeric columns.
-
-- **setType(column, type)**  
-  Set the data type for a specific column.
-
-- **setTypes(typeMap)**  
-  Set data types for multiple columns.
-
-- **corrPlot(options)**  
-  Generate a correlation plot.
-
-- **percentile(p, columns)**  
-  Calculate the percentile value(s) for numeric columns.
-
-- **iterrows()**  
-  Iterator over [index, row] pairs.
-
-- **itertuples(name)**  
-  Iterator over row tuples with an optional name.
-
-- **items()**  
-  Iterator over [column, values] pairs.
-
-- **[Symbol.iterator]()**  
-  Iterate directly over rows.
-
-- **print(options)**  
-  Return a printed representation of the DataFrame.
-
-- **terminate()**  
-  Terminate any active worker processes.
-
-- **with_columns(columnExpressions)**  
-  Add or modify columns using functions or literal expressions.
-
-- **merge(other, options)**  
-  Merge with another DataFrame based on join conditions.
-
-- **mean(columns)**  
-  Compute the mean of numeric columns.
-
-- **sum(columns)**  
-  Compute the sum of numeric columns.
-
-- **value_counts(column)**  
-  Count unique values in a column.
-
-- **fillna(value)**  
-  Replace missing values in the DataFrame.
-
-- **apply(column, func)**  
-  Apply a function to a column.
-
-- **map(column, mapper)**  
-  Map values in a column using a provided mapping.
-
-- **drop(columns)**  
-  Remove specified columns.
-
-- **dropna(options)**  
-  Remove rows or columns with missing values.
-
-- **rename(columnMap)**  
-  Rename columns using a mapping object.
-
-- **assign(columnName, values)**  
-  Add a new column to the DataFrame.
-
-- **add(other)**  
-  Add a scalar or DataFrame to numeric columns.
-
-- **sub(other)**  
-  Subtract a scalar or DataFrame from numeric columns.
-
-- **mul(other)**  
-  Multiply numeric columns by a scalar or another DataFrame.
-
-- **div(other)**  
-  Divide numeric columns by a scalar or another DataFrame.
-
-- **index()**  
-  Return an array of row indices.
