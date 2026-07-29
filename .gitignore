@@ -1,0 +1,75 @@
+# Node modules
+node_modules/
+node_modules/*
+
+# Build output (if applicable)
+dist/
+types/
+*.tgz
+.observablehq/cache/
+docs/.observablehq/cache/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Environment files (if any)
+.env*
+.envrc
+.refs/
+
+# Per-developer IDE config: never shared via git
+.cursor/
+
+# Client deliverables and conversion staging: never commit
+toConvert/
+
+# Personal notes and experiments
+scratch/
+
+# Claims data: NEVER commit (PHI-adjacent). Root data/ only; docs/data/
+# holds synthetic loader scripts, but generated CSVs stay out everywhere.
+/data/
+docs/data/*.csv
+
+# Claims-derived docs fixtures: the file that lands here holds real member
+# identifiers. The loader falls back to a synthetic panel, so nothing here
+# needs to be committed for the docs site to build.
+docs/files/*.csv
+
+# Data-dependent build scripts: they read private parquet inputs
+scripts/build-claims-slice.mjs
+scripts/build-did-sample.mjs
+
+# Data formats anywhere in the tree, not just root data/
+*.parquet
+*.duckdb
+*.sqlite
+*.db
+*.pkl
+*.feather
+*.arrow
+*.sas7bdat
+*.xlsx
+*.xls
+*.zip
+
+# Warehouse provenance sidecars: name catalogs, warehouse and statement IDs
+*.meta.yaml
+
+# Credentials
+.databrickscfg
+.netrc
+*.pem
+*.key
+
+# Editor config: per-developer, never shared via git
+.vscode/
+.idea/
+
+# Personal Databricks compute IDs
+variable-overrides.json

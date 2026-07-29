@@ -1,0 +1,99 @@
+{
+  "name": "observable-dataframe",
+  "version": "2.9.0",
+  "description": "A columnar, expression-based DataFrame for the browser, with Observable Plot primitives and experiment-design statistics. Polars syntax, pandas nostalgia, zero server.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "types/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "src/**/*.js",
+    "types/**/*.d.ts"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eli-s-goldberg/observable-dataframe.git"
+  },
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./stats": {
+      "types": "./types/stats/index.d.ts",
+      "default": "./src/stats/index.js"
+    },
+    "./data": {
+      "types": "./types/data/claimsSlice.d.ts",
+      "default": "./src/data/claimsSlice.js"
+    },
+    "./plots": {
+      "types": "./types/plots/index.d.ts",
+      "default": "./src/plots/index.js"
+    },
+    "./layouts": {
+      "types": "./types/layouts/index.d.ts",
+      "default": "./src/layouts/index.js"
+    }
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build:types": "tsc -p tsconfig.types.json",
+    "prepublishOnly": "npm test && npm run build:types",
+    "test:watch": "vitest",
+    "bench": "node test/bench/run.js",
+    "dev": "observable preview",
+    "build": "observable build",
+    "deploy": "observable deploy",
+    "docs:clean": "rm -rf docs/.observablehq dist",
+    "docs:verify": "node scripts/verify-docs-imports.mjs",
+    "docs:dev": "observable preview",
+    "docs:build": "observable build"
+  },
+  "dependencies": {
+    "d3-dsv": "^3.0.1",
+    "d3-sankey": "^0.12.3"
+  },
+  "peerDependencies": {
+    "@observablehq/inputs": ">=0.10",
+    "@observablehq/plot": ">=0.6",
+    "d3": "^7",
+    "htl": "^0.3"
+  },
+  "peerDependenciesMeta": {
+    "@observablehq/inputs": {
+      "optional": true
+    },
+    "@observablehq/plot": {
+      "optional": true
+    },
+    "d3": {
+      "optional": true
+    },
+    "htl": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@observablehq/framework": "^1.13.0",
+    "observable-dataframe": "file:.",
+    "@observablehq/inputs": "^0.12.0",
+    "@observablehq/plot": "^0.6.16",
+    "arquero": "^7.2.0",
+    "d3": "^7.9.0",
+    "htl": "^0.3.1",
+    "hyparquet": "^1.26.2",
+    "hyparquet-compressors": "^1.1.1",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^3.0.0"
+  }
+}
