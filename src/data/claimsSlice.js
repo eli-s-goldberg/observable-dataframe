@@ -12,8 +12,8 @@ import { DataFrame } from "../core/DataFrame.js";
 import { col } from "../core/expr.js";
 import { fromCSV } from "../core/io.js";
 
-/** Default path to the published sample (source parquets stay gitignored). */
-export const DEFAULT_CLAIMS_SLICE_PATH = "data/samples/claims_member_month.csv";
+/** Path the docs loader publishes the panel to, and what pages attach. */
+export const DEFAULT_CLAIMS_SLICE_PATH = "files/claims_panel.csv";
 
 /**
  * Load member-month claims slice from CSV into a typed DataFrame.

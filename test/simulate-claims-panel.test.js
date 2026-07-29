@@ -15,7 +15,17 @@
  *
  * The tolerances below are bands, not pins. The seed is fixed, so the numbers
  * are reproducible, but a band survives an honest refactor and still fails on
- * a real regression.
+ * a real regression. Each band is calibrated against a thirty-seed sweep of the
+ * estimator's error around the planted truth, at roughly three standard
+ * deviations of what that sweep observed, so no band is a transcription of
+ * whatever seed 42 happened to return. Where a seed sweep is the only honest way
+ * to state a claim at all, as it is for the two-way fixed effects bias, the test
+ * runs the sweep instead of asserting the claim on one draw.
+ *
+ * This is the only suite that holds the estimators to a claims-shaped panel,
+ * overdispersed and zero-heavy and churning, rather than to the tidy synthetic
+ * panels in did.test.js. It depends on nothing outside the package: no extract,
+ * no local file, no sidecar, so every test here runs in every environment.
  */
 
 import { describe, it, expect } from "vitest";
@@ -173,6 +183,24 @@ describe("simulateClaimsPanel: the shape it claims to have", () => {
     expect(truth.att).toBeLessThan(0);
     expect(truth.attFullyPhasedIn).toBeLessThan(truth.att);
   });
+
+  it("plants an effect of the size the rate ratio implies, on enough cells to find", () => {
+    // Thinning at (1 - rateRatio) makes the fully phased-in ATT exactly that
+    // share of the untreated encounter rate, so dividing it back out has to
+    // return that rate. Cohorts are assigned independently of member intensity,
+    // which makes the never-treated mean an unbiased read on the same quantity,
+    // and the two must therefore agree. This is the check that the planted truth
+    // is the right size rather than merely the right sign: a generator that
+    // reported a truth it had not actually planted would fail here and nowhere
+    // else. Across thirty seeds the gap has sd 0.24, so 0.8 is three sigma.
+    const impliedBaseline = truth.attFullyPhasedIn / (options.rateRatio - 1);
+    const neverTreated = mean(enrolled.filter((r) => r.cohort === 0).map((r) => r.medical_claims));
+    expect(impliedBaseline).toBeGreaterThan(neverTreated - 0.8);
+    expect(impliedBaseline).toBeLessThan(neverTreated + 0.8);
+    // Cohort sizes and enrollment churn fix this within a few hundred cells;
+    // it is a floor on how much the estimators have to work with, not a draw.
+    expect(truth.treatedMemberMonths).toBeGreaterThan(10000);
+  });
 });
 
 describe("panel estimators recover the planted effect", () => {
@@ -189,6 +217,27 @@ describe("panel estimators recover the planted effect", () => {
     expect(truth.att).toBeLessThan(r.ci[1]);
   });
 
+  it("attenuates TWFE toward zero on average, and only slightly", () => {
+    const errors = [];
+    for (let seed = 42; seed < 62; seed++) {
+      const draw = simulateClaimsPanel({ seed });
+      const r = twfe(draw.rows.filter((row) => row.enrolled_flag === 1), {
+        outcome: "medical_claims", treatment: "treated_now", unit: "person_id", time: "period",
+      });
+      errors.push(r.att - draw.truth.att);
+    }
+    // A bias claim is a statement about the average, so it is asserted on the
+    // average. Individual seeds overshoot the truth as often as one in six, and
+    // a per-seed attenuation check would be wrong rather than merely flaky.
+    // Twenty seeds put the signed mean error at +0.044, roughly two standard
+    // errors above zero and under 3% of a truth near -1.64: the sign is
+    // Goodman-Bacon attenuation under staggered adoption with dynamic effects,
+    // and the magnitude is what keeps it a caveat rather than a defect.
+    const bias = mean(errors);
+    expect(bias).toBeGreaterThan(0);
+    expect(bias).toBeLessThan(0.25);
+  });
+
   it("Callaway-Sant'Anna covers the truth cohort by cohort with bootstrap SEs", () => {
     const r = callawaySantAnna(panel, {
       outcome: "medical_claims", unit: "person_id", time: "period", group: "cohort",
@@ -200,6 +249,15 @@ describe("panel estimators recover the planted effect", () => {
     // centered on nothing, which is the property that matters.
     const pre = r.byEventTime.filter((e) => e.eventTime < 0);
     expect(Math.abs(mean(pre.map((e) => e.att)))).toBeLessThan(Math.abs(truth.att) * 0.25);
+    // Cell by cell rather than on the average, because an average can hide one
+    // wild cell. Bounding the point estimates directly does not work at this
+    // panel size, since a single cell reaches the size of the real effect; what
+    // each cell carries with it is its own standard error, so the bound goes on
+    // how many intervals exclude zero. A correctly sized 95% interval predicts
+    // 0.7 of these 14, and thirty seeds produced at most 3. A genuine pre-trend
+    // would light up most of them, not four.
+    const rejecting = pre.filter((e) => e.ci[0] > 0 || e.ci[1] < 0);
+    expect(rejecting.length).toBeLessThanOrEqual(4);
   });
 
   it("the event study shows a flat pre-period and a ramp after adoption", () => {
@@ -214,6 +272,14 @@ describe("panel estimators recover the planted effect", () => {
     const settled = r.effects.filter((e) => e.eventTime >= options.rampMonths - 1);
     expect(mean(settled.map((e) => e.estimate))).toBeLessThan(truth.attFullyPhasedIn + 0.4);
     expect(mean(settled.map((e) => e.estimate))).toBeGreaterThan(truth.attFullyPhasedIn - 0.4);
+
+    // The aggregate the estimator reports, not just the per-period effects we
+    // averaged ourselves above. Thirty seeds put the sd of this error at 0.21,
+    // so 0.7 is a little over three sigma.
+    const post = r.effects.filter((e) => e.eventTime >= 0);
+    expect(post.length).toBeGreaterThan(2);
+    expect(r.att).toBeGreaterThan(truth.att - 0.7);
+    expect(r.att).toBeLessThan(truth.att + 0.7);
   });
 
   it("the 2x2 on the first cohort recovers that cohort's own effect", () => {
@@ -230,6 +296,11 @@ describe("panel estimators recover the planted effect", () => {
     const cohortTruth = truth.attByCohort.find((c) => c.cohort === options.cohortPeriods[0]).att;
     expect(cohortTruth).toBeGreaterThan(r.ci[0]);
     expect(cohortTruth).toBeLessThan(r.ci[1]);
+    // The point estimate as well as the interval: an interval that had widened
+    // to swallow anything would still pass coverage. Thirty seeds put the sd of
+    // this error at 0.15, so 0.5 is over three sigma.
+    expect(r.att).toBeGreaterThan(cohortTruth - 0.5);
+    expect(r.att).toBeLessThan(cohortTruth + 0.5);
   });
 
   it("finds nothing where nothing was planted", () => {
