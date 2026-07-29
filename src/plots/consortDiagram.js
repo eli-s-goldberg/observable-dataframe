@@ -45,6 +45,22 @@ const BOX = {
   lineHeight: 15,
 };
 
+/** Canvas breathing room, and the corridor between a box and its side box. */
+const PAD = 8;
+const SIDE_GAP = 40;
+const SIDE_GAP_MIN = 16;
+const SIDE_WIDTH_MIN = 140;
+
+/**
+ * Fit a side box into the corridor it has to live in. The gap is spent
+ * first, then the box narrows, because a slightly cramped exclusion box
+ * still reads and one hanging off the canvas does not.
+ */
+function fitSideBox(room, requested) {
+  const w = Math.max(SIDE_WIDTH_MIN, Math.min(requested, room - SIDE_GAP_MIN));
+  return { w, gap: Math.max(SIDE_GAP_MIN, Math.min(SIDE_GAP, room - w)) };
+}
+
 /**
  * @param {object} config
  * @param {Array<object>} config.steps the main spine, top to bottom:
@@ -101,10 +117,20 @@ export function consortDiagram({
     return lines;
   };
 
+  // Every drawn extent is folded in here, so the viewBox can be widened to
+  // whatever the content actually needed rather than clipping it away.
+  const extent = { left: 0, right: width, bottom: 0 };
+  const cover = (x1, x2, y2) => {
+    if (x1 < extent.left) extent.left = x1;
+    if (x2 > extent.right) extent.right = x2;
+    if (y2 > extent.bottom) extent.bottom = y2;
+  };
+
   const drawBox = (cx, top, w, main, sub = [], { bold = true, align = "middle" } = {}) => {
     const mainLines = wrap(main, w);
     const subLines = sub.flatMap((s) => wrap(s, w));
     const h = BOX.padY * 2 + (mainLines.length + subLines.length) * BOX.lineHeight;
+    cover(cx - w / 2 - BOX.strokeWidth, cx + w / 2 + BOX.strokeWidth, top + h + BOX.strokeWidth);
     root.appendChild(
       el("rect", {
         x: cx - w / 2,
@@ -146,6 +172,7 @@ export function consortDiagram({
   };
 
   const arrow = (x1, y1, x2, y2) => {
+    cover(Math.min(x1, x2), Math.max(x1, x2), Math.max(y1, y2));
     root.appendChild(el("line", { x1, y1, x2, y2, stroke: colors.ink, "stroke-width": 1 }));
     // arrowhead on the terminal segment
     const angle = Math.atan2(y2 - y1, x2 - x1);
@@ -156,17 +183,22 @@ export function consortDiagram({
   };
 
   // --- layout ----------------------------------------------------------------
-  const spineX = arms.length ? width / 2 : width / 2;
+  const spineX = width / 2;
   let y = 16;
 
   if (title) {
     const t = el("text", { x: 8, y: y + 4, "font-size": typography.title, "font-weight": 700, fill: colors.ink });
     t.textContent = title;
     root.appendChild(t);
+    cover(8, 8 + String(title).length * typography.title * 0.6, y + 4);
     y += 28;
   }
 
-  const exclusionX = spineX + boxWidth / 2 + 40 + exclusionWidth / 2;
+  // The exclusion column hangs off the spine's right edge and has to land
+  // inside the canvas: the corridor between that edge and the margin is
+  // all the room there is.
+  const spineSide = fitSideBox(width - PAD - (spineX + boxWidth / 2), exclusionWidth);
+  const exclusionX = spineX + boxWidth / 2 + spineSide.gap + spineSide.w / 2;
 
   let prevBottom = null;
   for (const step of steps) {
@@ -180,14 +212,12 @@ export function consortDiagram({
       const exBox = drawBox(
         exclusionX,
         midY - 10,
-        exclusionWidth,
+        spineSide.w,
         `${step.excluded.label ?? "Excluded"} (n = ${fmt(step.excluded.n)})`,
         reasons,
         { align: "start" }
       );
       arrow(spineX, midY, exBox.cx - exBox.w / 2, midY);
-      // Arithmetic audit: the diagram should not claim more people than it has.
-      void exBox;
     }
     prevBottom = box.bottom;
     y = box.bottom + rowGap;
@@ -218,10 +248,26 @@ export function consortDiagram({
         if (step.excluded) {
           const reasons = (step.excluded.reasons ?? []).map((r) => `• ${r.label} (n = ${fmt(r.n)})`);
           const midY = (prev + box.top) / 2;
-          const exW = Math.min(exclusionWidth, armWidth);
-          const dir = i === arms.length - 1 ? 1 : 1; // exclusions hang right of each arm
-          const exBox = drawBox(ax + armWidth / 2 + 24 + exW / 2, midY - 8, exW, `${step.excluded.label ?? "Excluded"} (n = ${fmt(step.excluded.n)})`, reasons, { align: "start" });
-          arrow(ax + dir * 0, midY, exBox.cx - exBox.w / 2, midY);
+          // Exclusions hang right of their arm, except the rightmost arm's,
+          // which would otherwise walk straight off the canvas.
+          const dir = i === arms.length - 1 && arms.length > 1 ? -1 : 1;
+          const neighbor =
+            dir < 0
+              ? armXs[i - 1] + armWidth / 2
+              : i + 1 < arms.length
+                ? armXs[i + 1] - armWidth / 2
+                : width - PAD;
+          const room = Math.abs(neighbor - (ax + dir * (armWidth / 2)));
+          const side = fitSideBox(room, Math.min(exclusionWidth, armWidth));
+          const exBox = drawBox(
+            ax + dir * (armWidth / 2 + side.gap + side.w / 2),
+            midY - 8,
+            side.w,
+            `${step.excluded.label ?? "Excluded"} (n = ${fmt(step.excluded.n)})`,
+            reasons,
+            { align: "start" }
+          );
+          arrow(ax, midY, exBox.cx - dir * (exBox.w / 2), midY);
         }
         prev = box.bottom;
         bottom = box.bottom;
@@ -235,9 +281,15 @@ export function consortDiagram({
     y = prevBottom + 16;
   }
 
-  svg.setAttribute("viewBox", `0 0 ${width} ${y}`);
-  svg.setAttribute("width", width);
-  svg.setAttribute("height", y);
+  // The viewBox follows the content, not the request: a diagram that needs
+  // more room than `width` renders smaller rather than losing a box off
+  // the edge. `max-width: 100%` keeps it inside the column either way.
+  const left = extent.left < 0 ? extent.left - PAD : 0;
+  const right = extent.right > width ? extent.right + PAD : width;
+  const bottom = Math.max(y, extent.bottom + PAD);
+  svg.setAttribute("viewBox", `${left} 0 ${right - left} ${bottom}`);
+  svg.setAttribute("width", right - left);
+  svg.setAttribute("height", bottom);
   svg.setAttribute("style", `max-width: 100%; height: auto; font-family: ${fonts.sans}; background: white;`);
   return svg;
 }

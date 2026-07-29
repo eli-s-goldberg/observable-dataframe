@@ -69,12 +69,13 @@ describe("trapezoidFunnel", () => {
     { group: "Converted", value: 8000 },
   ];
 
-  it("renders trapezoids with percentages and rates", () => {
+  it("renders trapezoids with counts, shares, and rates", () => {
     const el = trapezoidFunnel(stages);
     expect(isNode(el)).toBe(true);
     expect(el.textContent).toContain("Aware");
-    expect(el.textContent).toContain("100%");
-    expect(el.textContent).toContain("40% convert ↓");
+    expect(el.textContent).toContain("100,000");
+    expect(el.textContent).toContain("40% of top");
+    expect(el.textContent).toContain("↓ 40%");
   });
 
   it("uses altLabel when provided", () => {

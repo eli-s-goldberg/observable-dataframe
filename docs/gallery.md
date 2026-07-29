@@ -186,6 +186,10 @@ Stacked dots for dense event timelines: each row is one observation, dots at
 the same x pile vertically via `Plot.stackY2`. Subsample with `interval` when
 the series is too thick; `countValues` adds right-margin totals by category.
 
+Stacking is arithmetic, so it needs a numeric `y` — `y: () => 1` is the
+usual "count the events" case, and the axis is multiplied back up to real
+counts when you subsample.
+
 ```js echo
 const events = Array.from({ length: 400 }, (_, i) => ({
   month: (i % 24) + 1,
@@ -194,11 +198,27 @@ const events = Array.from({ length: 400 }, (_, i) => ({
 }));
 display(dotPlot(events, {
   x: "month",
-  y: "member",
+  y: () => 1,
   fill: "lane",
   interval: 2,
   countValues: ["imaging", "pt", "surgery"],
   countField: "lane",
+  xLabel: "months from index",
+  yLabel: "events",
+  width: 520,
+  height: 320,
+}));
+```
+
+Hand it a categorical `y` instead and the dots are placed straight onto an
+ordinal axis, which is what a category asked for anyway:
+
+```js echo
+display(dotPlot(events, {
+  x: "month",
+  y: "member",
+  fill: "lane",
+  interval: 4,
   xLabel: "months from index",
   yLabel: "member",
   width: 520,
@@ -239,8 +259,11 @@ display(bumpChart(conditions, { x: "period", y: "value", z: "series" }));
 ## trapezoidFunnel
 
 The classic centered funnel, for meetings where a bar chart isn't what
-people picture when they say "funnel". Label colors are contrast-checked
-against each band.
+people picture when they say "funnel". One hue darkening down the taper,
+whitespace instead of borders, stage names in a fixed column, counts in
+the band (or just outside it when the band gets too narrow to hold one),
+and stage-to-stage conversion in its own right-hand column. Pass
+`palette` if you need the bands to carry category instead.
 
 ```js echo
 display(trapezoidFunnel([
@@ -341,6 +364,8 @@ display(tufteForestPlot([
 
 A program timeline that snakes across the page instead of demanding a
 wall. Hover the points; the "Now" marker and dashed lead-in are options.
+The figure is fluid down to the column and never drawn larger than the
+`width` you asked for.
 
 ```js echo
 const milestones = DataFrame.fromRows([
@@ -351,7 +376,7 @@ const milestones = DataFrame.fromRows([
   { date: "2027-12-01", phase: "Financial", activity: "PMPM impact in TME", strokeColor: "#B7860B" },
 ]);
 const serpentine = serpentineTimeline(milestones, {
-  width: 1000, height: 520, turns: 2,
+  width: 820, height: 440, turns: 2,
   now: new Date("2026-08-01"),
   displayLevels: ["date", "phase", "activity"],
 });

@@ -118,10 +118,12 @@ display(P.boxPlot(df, { x: "g", y: "y", width: 300, height: 200 }));
 
 Stacked dot plot for dense event data (`Plot.stackY2`). Subsample with
 `interval`; annotate category totals on the right with `countValues` +
-`countField`.
+`countField`. Stacking needs a numeric `y` (`y: () => 1` counts events);
+a categorical `y` is placed directly on an ordinal axis instead.
 
 ```js echo
 const pts = df.toRows().map((r, i) => ({ ...r, lane: ["a", "b", "c"][i % 3] }));
+display(P.dotPlot(pts, { x: "x", y: () => 1, fill: "lane", yLabel: "events", width: 360, height: 220 }));
 display(P.dotPlot(pts, { x: "x", y: "city", fill: "lane", width: 360, height: 220 }));
 ```
 
@@ -141,8 +143,10 @@ SVG/PNG export.
 
 ### funnelChart(data, {group, value, showRates, tip}) / trapezoidFunnel(data, options)
 
-The honest bar funnel (labels hop outside narrow bars) and the classic
-centered trapezoid with contrast-checked labels.
+The honest bar funnel and the classic centered trapezoid. Both label
+directly and move a value outside its band when the band is too narrow to
+hold it. The trapezoid defaults to a single-hue ramp darkening down the
+taper; pass `palette` for per-category colors.
 
 ### sankeyFlow(nested, config) / nestFromFrame(df, {levels, buckets})
 
@@ -201,7 +205,10 @@ Collapsible drill-down tree with a configurable metrics panel
 
 ### pictogramFill({pathData, fillLevel, ...})
 
-Any silhouette as a percentage gauge; returns `{node, setFillLevel}`.
+Any silhouette as a percentage gauge; returns `{node, setFillLevel}`. The
+path is measured and fitted into the box, so `fillLevel` (0–100) is a true
+percentage of the shape's height whatever units the path arrived in. Set
+`flipY` for path data authored y-up.
 
 ## Tables & summaries
 

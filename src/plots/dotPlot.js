@@ -9,7 +9,7 @@
 
 import * as Plot from "@observablehq/plot";
 import { asRows } from "./util.js";
-import { plotDefaults, tufteAxis } from "./theme.js";
+import { plotDefaults, tufteAxis, typography } from "./theme.js";
 import { resolveTip } from "./options.js";
 
 function subsample(rows, interval) {
@@ -21,22 +21,30 @@ function accessor(field) {
   return typeof field === "function" ? field : (d) => d[field];
 }
 
-function resolveDomain(rows, field, explicit, numeric = true) {
-  if (explicit) return explicit;
-  const vals = rows.map(accessor(field)).filter((v) => v != null && !Number.isNaN(v));
-  if (vals.length === 0) return numeric ? [0, 1] : vals;
-  if (!numeric) return [...new Set(vals)];
-  return [Math.min(...vals), Math.max(...vals)];
+/** Stacking is arithmetic; it needs numbers, not category names. */
+function isQuantitative(rows, acc) {
+  let seen = false;
+  for (const row of rows) {
+    const v = acc(row);
+    if (v == null) continue;
+    if (typeof v !== "number" || Number.isNaN(v)) return false;
+    seen = true;
+  }
+  return seen;
 }
 
 /**
  * Stacked dot plot. Dots at the same x stack vertically; subsample with
  * `interval` when the series is too dense for the pixel width.
  *
+ * Stacking needs a numeric y (`y: () => 1` is the usual "count the events"
+ * case). Give it a categorical y instead and the dots are positioned
+ * directly on an ordinal axis, which is what a category asked for anyway.
+ *
  * @param {import("../core/DataFrame.js").DataFrame|Array<object>} data
  * @param {object} [options]
  * @param {string|Function} [options.x="x"] x field or accessor
- * @param {string|Function} [options.y="y"] y field or accessor (stacked)
+ * @param {string|Function} [options.y="y"] y field or accessor (stacked when numeric)
  * @param {string|Function} [options.fill] fill field or accessor
  * @param {string|Function} [options.title] tooltip field or accessor
  * @param {number} [options.r=2.5] dot radius
@@ -45,6 +53,8 @@ function resolveDomain(rows, field, explicit, numeric = true) {
  * @param {string[]} [options.countValues] category values to annotate on the right
  * @param {string} [options.countField] field matched against countValues
  * @param {number} [options.width=640]
+ * @param {number[]} [options.xDomain] / @param {number[]} [options.yDomain] explicit
+ *   scale domains; omitted, Plot infers them from the data it actually draws
  * @param {"stack"|"mirror"} [options.layout="stack"] stack at x vs fixed y bands (balance plots)
  */
 export function dotPlot(
@@ -80,8 +90,10 @@ export function dotPlot(
   const fillAcc = fill != null ? accessor(fill) : null;
   const titleAcc = title != null ? accessor(title) : null;
 
-  const xDom = resolveDomain(rows, xAcc, xDomain, true);
-  const yDom = resolveDomain(rows, yAcc, yDomain, true);
+  // Stacking a category name has no meaning, and Plot's stack transform
+  // quietly collapses every dot onto one row when asked to try.
+  const numericY = isQuantitative(rows, yAcc);
+  const stacked = layout === "stack" && numericY;
 
   const dotOpts = {
     x: xAcc,
@@ -92,40 +104,26 @@ export function dotPlot(
   };
 
   const marks = [
-    layout === "mirror"
-      ? Plot.dot(rows, dotOpts)
-      : Plot.dot(rows, Plot.stackY2(dotOpts)),
-    Plot.ruleY([0]),
+    stacked ? Plot.dot(rows, Plot.stackY2(dotOpts)) : Plot.dot(rows, dotOpts),
+    // A zero baseline belongs under a count axis; on a categorical y it
+    // would just add "0" to the list of categories.
+    ...(numericY ? [Plot.ruleY([0])] : []),
   ];
 
   if (countValues?.length && countField) {
-    const counts = Object.fromEntries(
-      countValues.map((value) => [
-        value,
-        rows.filter((d) => d[countField] === value).length * interval,
-      ])
-    );
-    const span = yDom[1] - yDom[0] || 1;
+    // Anchored to the frame rather than to data coordinates: the labels
+    // live in the right margin whatever kind of scale the axes ended up.
     marks.push(
       ...countValues.map((value, index) =>
-        Plot.text(
-          [
-            {
-              x: xDom[1],
-              y: yDom[0] + index * 0.12 * span,
-              label: `${value}: ${counts[value] ?? 0}`,
-            },
-          ],
-          {
-            x: "x",
-            y: "y",
-            text: (d) => d.label,
-            fill: "currentColor",
-            dx: "0.75em",
-            textAnchor: "start",
-            fontSize: 11,
-          }
-        )
+        Plot.text([`${value}: ${rows.filter((d) => d[countField] === value).length * interval}`], {
+          frameAnchor: "top-right",
+          dx: marginRight - 8,
+          dy: index * (typography.base + 4),
+          text: (d) => d,
+          fill: "currentColor",
+          textAnchor: "end",
+          fontSize: typography.base,
+        })
       )
     );
   }
@@ -138,11 +136,20 @@ export function dotPlot(
     marginLeft,
     marginRight,
     marginTop,
-    x: { label: xLabel ?? (typeof x === "string" ? x : null), domain: xDom, ...tufteAxis },
+    x: {
+      label: xLabel ?? (typeof x === "string" ? x : null),
+      ...(xDomain ? { domain: xDomain } : {}),
+      ...tufteAxis,
+    },
     y: {
       label: yLabel ?? (typeof y === "string" ? y : null),
-      domain: yDom,
-      tickFormat: interval > 1 ? (d) => String(interval * Math.abs(+d.toFixed(1))) : undefined,
+      ...(yDomain ? { domain: yDomain } : {}),
+      // Subsampled dots each stand for `interval` observations, so the
+      // stacked count axis has to be multiplied back up to real counts.
+      tickFormat:
+        interval > 1 && stacked
+          ? (d) => String(interval * Math.abs(+d.toFixed(1)))
+          : undefined,
       ...tufteAxis,
     },
     ...(fillAcc

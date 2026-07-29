@@ -120,12 +120,15 @@ export function serpentineTimeline(
   const adjustedMargin = Math.max(margin, height * 0.15);
   const dateFormat = { year: "numeric", month: "numeric", day: "numeric" };
 
-  const div = d3.create("div").style("width", "100%").style("height", "100%").style("overflow", "hidden");
+  // Fluid down to the column, but never larger than nominal: an S-curve
+  // upscaled past its design size is just a big S-curve.
+  const div = d3.create("div").style("width", "100%").style("max-width", `${width}px`);
   const svg = div
     .append("svg")
     .attr("viewBox", [0, 0, width, height])
     .style("width", "100%")
-    .style("height", "100%")
+    .style("height", "auto")
+    .style("display", "block")
     .attr("preserveAspectRatio", "xMidYMid meet");
 
   const tooltip = d3
@@ -194,9 +197,9 @@ export function serpentineTimeline(
       if (item.dashing) segment.attr("stroke-dasharray", item.dashing);
     });
 
-    // Floating labels, sized from the shared type scale (bumped ~25% because
-    // the viewBox usually renders smaller than nominal).
-    const displayFactor = 1.25 * scale;
+    // Floating labels, sized from the shared type scale; `scale` already
+    // carries the viewBox compensation, so these land at their nominal px.
+    const displayFactor = scale;
     const pointGroups = svg.append("g").selectAll("g").data(filtered).join("g");
     const lineHeight = {
       date: typography.title * displayFactor,
@@ -208,7 +211,7 @@ export function serpentineTimeline(
 
     pointGroups.append("g").each(function (d) {
       const point = pathNode.getPointAtLength(timeScale(d.date));
-      const group = d3.select(this).attr("transform", `translate(${point.x}, ${point.y - 50 * scale})`);
+      const group = d3.select(this);
 
       const textLines = [];
       for (const level of displayLevels) {
@@ -225,6 +228,11 @@ export function serpentineTimeline(
       const totalHeight = textLines.reduce((acc, l) => acc + l.size + lineSpacing, 0);
       const maxWidth = Math.max(...textLines.map((l) => l.text.length * l.size * 0.6), 0);
       const padding = 10 * scale;
+
+      // Labels sit at their milestone but never past the frame; the ones
+      // on the right-hand bend would otherwise be drawn off the canvas.
+      const x = Math.min(Math.max(point.x, padding), Math.max(padding, width - maxWidth - padding));
+      group.attr("transform", `translate(${x}, ${point.y - 50 * scale})`);
 
       group
         .append("rect")
@@ -311,11 +319,15 @@ export function serpentineTimeline(
     }
   }
 
+  // Text and markers are drawn in viewBox units, which the browser then
+  // scales by renderedWidth/width. Pre-dividing by that ratio is what keeps
+  // a label the same number of screen pixels at any column width.
   function redraw() {
     const container = div.node().parentElement;
     if (!container) return;
-    const bounds = container.getBoundingClientRect();
-    drawTimeline(Math.min(bounds.width / width, bounds.height / height) || 1);
+    const rendered = container.getBoundingClientRect().width;
+    if (!rendered) return;
+    drawTimeline(Math.min(Math.max(width / rendered, 1), 2.5));
   }
 
   const resizeObserver = typeof ResizeObserver !== "undefined" ? new ResizeObserver(redraw) : null;
