@@ -1,5 +1,9 @@
 # observable-dataframe
 
+**[Documentation site](https://eli-s-goldberg.github.io/observable-dataframe/)** ·
+[Plot gallery](https://eli-s-goldberg.github.io/observable-dataframe/gallery) ·
+[Benchmarks](https://eli-s-goldberg.github.io/observable-dataframe/benchmarks)
+
 A columnar, expression-based DataFrame for the browser, built for Observable
 Framework. Polars-style expressions over typed-array storage, plus the
 extension modules that turn frames into analyses: statistics and causal
@@ -33,8 +37,9 @@ Plot.plot({ marks: [Plot.barY(summary.toRows(), { x: "city", y: "avg_income" })]
   to Observable Plot and `Inputs.table`.
 - **Measured, not asserted.** `npm run bench` compares against Arquero.
   Grouped aggregation runs roughly 4-13x faster at 100k-1M rows; filters,
-  sorts, and joins are competitive. Numbers, machine, and methodology in the
-  docs.
+  sorts, and joins are competitive. Numbers, machine, and methodology on the
+  [benchmarks page](https://eli-s-goldberg.github.io/observable-dataframe/benchmarks),
+  which also reruns a subset in your own browser.
 
 ## Install
 
@@ -298,8 +303,8 @@ The catalog: `summaryTable`, `distPlot`, `corrPlot`, `boxPlot`,
 export), `pictogramFill`, `consortDiagram`, `designMatrixPlot`,
 `experimentDesignTree`, `powerTable`, `measurementTimeline`, and the
 regression figures `didPlot` / `eventStudyPlot`, which consume estimator
-output from `/stats` directly. Live examples of each are in the docs gallery
-(`npm run dev`, then Figures, then Plot gallery).
+output from `/stats` directly. Every one of them renders live in the
+[plot gallery](https://eli-s-goldberg.github.io/observable-dataframe/gallery).
 
 ## /layouts: page scaffolding
 
@@ -348,10 +353,15 @@ npm run build:types   # TypeScript declarations from JSDoc
 npm run docs:dev      # live docs site (Observable Framework)
 ```
 
-The docs site (`docs/`) publishes the landing page, the API reference, and
-the plot gallery; the guide pages (the journey, module catalog, data panel,
-experiment design, DiD walkthrough, benchmarks) remain in the repo as
-drafts. API references for every module live in `docs/api/`.
+The docs site (`docs/`) is published to
+[GitHub Pages](https://eli-s-goldberg.github.io/observable-dataframe/) by
+`.github/workflows/deploy-docs.yml` on every push to `main`: the landing page,
+the guide pages (DataFrame tour, DiD walkthrough, data panel, module catalog),
+the [benchmarks](https://eli-s-goldberg.github.io/observable-dataframe/benchmarks),
+the [plot gallery](https://eli-s-goldberg.github.io/observable-dataframe/gallery),
+and the per-module API reference in `docs/api/`. Data loaders emit synthetic
+panels when no local extract is present, so the site builds from a clean
+checkout with no data at all.
 
 ## Acknowledgments
 

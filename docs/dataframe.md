@@ -2,7 +2,6 @@
 toc: true
 theme: [air, wide]
 title: The DataFrame
-draft: true
 ---
 
 ```js

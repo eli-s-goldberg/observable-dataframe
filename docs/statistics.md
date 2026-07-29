@@ -2,7 +2,6 @@
 toc: true
 theme: [air, wide]
 title: Panel data & DiD
-draft: true
 ---
 
 ```js

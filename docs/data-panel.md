@@ -1,6 +1,5 @@
 ---
 title: Data panel
-draft: true
 ---
 
 ```js

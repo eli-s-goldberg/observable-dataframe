@@ -3,6 +3,7 @@
   "version": "2.9.0",
   "description": "A columnar, expression-based DataFrame for the browser, with Observable Plot primitives and experiment-design statistics. Polars syntax, pandas nostalgia, zero server.",
   "license": "Apache-2.0",
+  "homepage": "https://eli-s-goldberg.github.io/observable-dataframe/",
   "type": "module",
   "sideEffects": false,
   "main": "src/index.js",

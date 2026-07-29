@@ -2,7 +2,6 @@
 toc: false
 theme: [air, wide]
 title: Benchmarks
-draft: true
 ---
 
 ```js

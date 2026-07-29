@@ -1,9 +1,8 @@
 ---
 title: Module catalog
-draft: true
 ---
 
-# Module catalog (first pass)
+# Module catalog
 
 Every export path, one motivating case, one entry point. The **DataFrame** is
 the primitive; everything else produces, transforms, or visualizes DataFrames.

@@ -84,6 +84,18 @@ own series.
 | `observable-dataframe/layouts` | page style, split panels, KPI cards, table formatters |
 | `observable-dataframe/data` | member-month claims panel helpers |
 
+## Where to go next
+
+- [Plot gallery](./gallery): every figure primitive, rendered live
+- [Benchmarks](./benchmarks): measured against Arquero, plus a rerun button that
+  times this library in your own browser
+- [The DataFrame](./dataframe): the full tour of frame verbs, grouping, joins,
+  reshaping, and `groupByDynamic`
+- [Panel data & DiD](./statistics): a causal analysis end to end, from CONSORT
+  diagram to Callaway-Sant'Anna
+- [Healthcare data panel](./data-panel): the member-month claims helpers
+- [Module catalog](./modules): every export path with a motivating case
+
 ## API reference
 
 Every method with a live example:
