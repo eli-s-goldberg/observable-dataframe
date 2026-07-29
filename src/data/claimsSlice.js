@@ -1,10 +1,11 @@
 /**
  * claimsSlice.js — load the published member-month claims slice into a DataFrame.
  *
- * Reads the CSV a data loader publishes, whether that CSV came from a local
- * extract or from the loader's synthetic fallback; the parser only cares about
- * the columns and dtypes. Everything downstream — describe, groupBy, joins with
- * experiment panels — starts here.
+ * Reads the CSV a data loader publishes; the parser only cares about the
+ * columns and dtypes. Everything downstream, describe and groupBy and the panel
+ * estimators, starts here. The panel the docs publish comes from
+ * simulateClaimsPanel.js, so the schema below is the schema that generator
+ * emits.
  */
 
 import { DataFrame } from "../core/DataFrame.js";
@@ -17,8 +18,12 @@ export const DEFAULT_CLAIMS_SLICE_PATH = "data/samples/claims_member_month.csv";
 /**
  * Load member-month claims slice from CSV into a typed DataFrame.
  *
- * Columns: person_id, month, medical_claims, pharmacy_fills, pharmacy_paid,
- * enrolled_flag
+ * Columns: person_id, month, period, cohort, treated_now, medical_claims,
+ * pharmacy_fills, pharmacy_paid, enrolled_flag. Columns absent from the CSV are
+ * simply absent from the DataFrame, so a narrower panel still parses.
+ *
+ * `cohort` is the member's adoption period, or 0 for never treated, which is
+ * the encoding the panel estimators read as a clean comparison group.
  *
  * @param {string} text CSV contents
  */
@@ -27,6 +32,9 @@ export function claimsSliceFromCSV(text) {
     dtypes: {
       person_id: "str",
       month: "str",
+      period: "i32",
+      cohort: "i32",
+      treated_now: "i32",
       medical_claims: "i32",
       pharmacy_fills: "i32",
       pharmacy_paid: "f64",

@@ -30,8 +30,8 @@
       "default": "./src/stats/index.js"
     },
     "./data": {
-      "types": "./types/data/claimsSlice.d.ts",
-      "default": "./src/data/claimsSlice.js"
+      "types": "./types/data/index.d.ts",
+      "default": "./src/data/index.js"
     },
     "./plots": {
       "types": "./types/plots/index.d.ts",

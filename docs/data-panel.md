@@ -16,7 +16,9 @@ injectPageStyle();
 </div>
 
 ```js
-import { claimsSliceFromCSV, memberRollup, monthlyTrend, enrolledMemberMonths } from "observable-dataframe/data";
+import {
+  claimsSliceFromCSV, memberRollup, monthlyTrend, enrolledMemberMonths,
+} from "observable-dataframe/data";
 import { summaryTable } from "observable-dataframe/plots";
 ```
 
@@ -29,19 +31,26 @@ builds the published CSV at preview/build time instead:
 
 | File | Role |
 |------|------|
-| `docs/files/claims_member_month.csv.js` | Loader: reads `data/samples/` or emits synthetic fallback |
-| `FileAttachment("files/claims_member_month.csv")` | What pages import in the browser |
+| `docs/files/claims_panel.csv.js` | Loader: calls `claimsPanelCsv({ seed: 42 })` |
+| `FileAttachment("files/claims_panel.csv")` | What pages import in the browser |
 
-No extract is required to work through this page:
+Nothing is required to work through this page:
 
 ```bash
 npm run docs:dev
 ```
 
-With no `data/samples/claims_member_month.csv` present, the loader emits a
-synthetic panel of the same shape and column types, which is the supported path
-for anyone without a local extract. If you do drop a real sample at that path,
-the loader prefers it on the next preview run.
+The loader always simulates, and deliberately does not look for a local extract.
+A public site that prefers a local file publishes whatever happens to sit on the
+machine that ran the build, and a seeded panel is byte-identical everywhere, so
+the numbers quoted in prose on [Panel data & DiD](./statistics) stay true on
+every checkout. The generator is
+[`simulateClaimsPanel()`](./api/data#simulate-claims-panel-options), and it is
+built to reproduce the shape utilization has rather than a smooth ramp:
+overdispersed counts, roughly two fifths of member-months at zero, spend with a
+lognormal tail, persistent high utilizers, enrollment churn, and mild
+seasonality. To work against your own extract, point your own page at your own
+loader.
 
 Columns:
 
@@ -49,7 +58,10 @@ Columns:
 |--------|---------|
 | `person_id` | Cross-source member key |
 | `month` | `YYYY-MM` service month |
-| `medical_claims` | Distinct claim-day count |
+| `period` | Month index, 0 through 23 |
+| `cohort` | Adoption period, or 0 for never treated |
+| `treated_now` | 1 when this member is treated in this month |
+| `medical_claims` | Encounter count, the DiD outcome |
 | `pharmacy_fills` | Fill count |
 | `pharmacy_paid` | Sum paid amount |
 | `enrolled_flag` | 1 if month falls in eligibility span |
@@ -57,7 +69,7 @@ Columns:
 ## Load into DataFrame
 
 ```js
-const claimsCsv = FileAttachment("files/claims_member_month.csv");
+const claimsCsv = FileAttachment("files/claims_panel.csv");
 ```
 
 ```js echo

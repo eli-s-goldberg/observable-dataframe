@@ -60,20 +60,19 @@ the workhorse utilization measure: how many times did this member touch
 the system this month?
 
 Claims data does not ship with this package, and the estimators are held to
-a standard that does not require it. This page runs on a **synthetic twin**:
-the schema, cohort structure, and staggered design of a real member-month
-panel, with a planted effect of −2 encounters per member per month. The suite
-in `test/did-claims.test.js` applies the same standard to a real panel when one
-is available locally, so the estimators are checked against genuine claims
-noise, zeros and skew and churn included, without that data ever being
-published.
+a standard that does not require it. This page runs on a **simulated panel**:
+the schema, cohort structure, and staggered design a member-month panel has,
+with a planted effect of −2 encounters per member per month. The
+[validation section](#validation-and-a-thank-you) below repeats the whole
+exercise on a larger simulated panel whose counts are deliberately as
+overdispersed, zero-heavy, and skewed as utilization actually is.
 **We know the answer is −2 because we buried it ourselves.** That is the
 entire evaluation strategy: if the machinery cannot find treasure it
 buried, it has no business hunting anyone else's.
 
 ```js echo
-// The synthetic twin: 1,000 members screened, exclusions applied the way
-// the real pipeline applies them, 400 enrolled into a 12-month panel.
+// 1,000 members screened, exclusions applied the way a claims pipeline
+// applies them, 400 enrolled into a 12-month panel.
 const study = (() => {
   let s = 42;
   const rand = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
@@ -444,12 +443,80 @@ reshaping step, no transcription step, no transcription errors.
 
 The 2×2 reproduces the reference implementation's published quick-start
 output digit for digit (ATT = 3.0000, SE = 1.7321, p = 0.1583, with
-`vcov: "classical"`). The test suite requires every estimator on this
-page to recover effects planted in synthetic panels and, locally, in a
-member-month panel sampled from real claims: with a realized effect of
-−1.27 encounters (the planted −2, attenuated by the zero floor on
-counts), TWFE returned −1.10 and Callaway–Sant'Anna −1.11, both with the
-truth inside their intervals.
+`vcov: "classical"`).
+
+Every estimator on this page is then checked against a simulated claims panel,
+and simulation is the stronger test here rather than the weaker one. On
+observational data you can compare estimators to each other and hope they agree;
+the quantity they are all estimating is never available. On a panel you
+generated, it is a number you can print.
+
+`simulateClaimsPanel()` from `observable-dataframe/data` draws a baseline
+intensity per member from a gamma distribution, mixes it into Poisson counts
+through a monthly shock, forces a share of member-months to no utilization at
+all, and gives spend a lognormal tail. The counts that come out are
+overdispersed rather than Poisson, roughly two fifths of member-months are zero,
+high utilizers stay high, and enrollment churns. It plants the effect by
+thinning: on a treated member-month each would-be encounter is dropped
+independently with probability 0.4, phased in over three months. Because the
+thinning removes encounters from a draw the generator is already holding, the
+untreated counterfactual survives for every treated cell, so the average
+treatment effect on the treated is **measured, not assumed**.
+
+The panel the [data panel page](./data-panel) publishes is that generator at
+seed 42: 1,500 members over 24 months, three cohorts of 300 adopting at months
+8, 12, and 16, and 600 members who never adopt. Cohort assignment is independent
+of member intensity, so parallel trends holds by construction. Restricted to
+enrolled member-months, the planted effect works out to **−1.643 encounters per
+treated member-month** across the whole post period, and **−1.802** once the
+phase-in completes.
+
+| Estimator | Recovered | 95% interval | Planted truth | Covers it |
+|---|---|---|---|---|
+| 2×2, first cohort vs never-treated | −1.795 (SE 0.256) | [−2.30, −1.29] | −1.862, that cohort | yes |
+| Two-way fixed effects | −1.523 (SE 0.129) | [−1.78, −1.27] | −1.643 | yes |
+| Event study, average over e ≥ 2 | −1.999 | per-period, below | −1.802 | yes |
+| Callaway–Sant'Anna, analytic SE | −2.059 (SE 0.106) | [−2.27, −1.85] | −1.643 | **no** |
+| Callaway–Sant'Anna, `bootstrap: 999` | −2.059 (SE 0.290) | [−2.63, −1.49] | −1.643 | yes |
+
+Two of those rows deserve more than a checkmark.
+
+**TWFE comes back about 7% short, and that is the literature rather than a
+bug.** Repeating the exercise across twenty seeds, TWFE is biased toward zero by
+0.08 encounters on average, about four standard errors of that mean, while
+Callaway–Sant'Anna and the event study show no bias detectable at this panel
+size. Collapsing the phase-in to a single period removes the TWFE bias entirely
+(−0.002). So does collapsing the three cohorts to one adoption date (+0.046, not
+distinguishable from zero). The attenuation therefore requires both staggered
+adoption and dynamic effects together, which is exactly the condition
+Goodman-Bacon (2021) describes, and exactly why `callawaySantAnna()` exists.
+
+**Callaway–Sant'Anna's analytic interval misses the truth, and its own
+docstring says why.** Aggregating ATT(g,t) cells analytically treats them as
+independent, and they are not: every cell for a cohort is differenced against
+the same base period, so noise in that one base mean shifts the whole cohort
+together and never averages out across periods. The independence approximation
+reports SE 0.106 where the unit-level bootstrap reports 0.290, and only the
+bootstrap interval covers the truth. Each cohort's own planted effect (−1.862,
+−1.527, and −1.375, falling because later adopters spend less of the window
+fully phased in) does land inside its bootstrap interval. Pass `bootstrap: 999`
+whenever the interval is load-bearing.
+
+The diagnostics have nothing to find, which is the point of running them where
+nothing is buried. The pre-trend slope on the first cohort is 0.021 (SE 0.083,
+p = 0.80). The placebo, with an invented treatment date at month 4, returns
+−0.065 (p = 0.86). Every event-study pre-period coefficient sits within 0.483 of
+zero and none reaches significance at the 5% level, against a real effect near
+−1.8. Across twenty seeds the pre-trend test rejected at the 5% level zero times
+and the placebo once, which is the nominal rate behaving as advertised.
+
+One honest limit. Callaway–Sant'Anna's individual pre-period cells are noisy at
+this panel size, reaching 1.7 in absolute value even though they average to
+−0.06. Cohort precision scales with members per cohort and not at all with the
+number of months, for the base-period reason above, so the remedy is more
+members rather than a longer window. 1,500 is where we stopped: a panel large
+enough to pin those cells down individually is larger than a documentation site
+should ship as a static file. Read the aggregates, and bootstrap them.
 
 The estimator selection, the API shape, and the practitioner workflow
 here are modeled on
@@ -462,15 +529,20 @@ for anything beyond (Sun–Abraham, Synthetic DiD, Honest DiD sensitivity
 bounds, survey designs), use the original. It is excellent, and this page
 exists because their design was worth imitating. Thank you.
 
-## Running this against the real thing
+## Reproducing this
 
-Everything on this page runs on synthetic panels, which is the supported path:
-the estimators are exercised by simulated data with a planted effect of known
-size, and each one is required to recover it. `test/did-claims.test.js` will
-also run against a real member-month panel if one is present at
-`data/samples/did_member_month.csv`, and skips when it is absent, so the suite
-is green with no local data.
+Everything on this page is generated, and generated deterministically. The
+walkthrough above runs on the inline panel in the first code block; the
+validation table runs on `simulateClaimsPanel({ seed: 42 })`, which is the same
+panel the docs site publishes and the same panel
+`test/simulate-claims-panel.test.js` holds to both its distributional shape and
+its planted effect. No warehouse, no extract, no credential:
+
+```bash
+npm test
+npm run docs:build
+```
 
 One dataset, one flow diagram, one Table 1, four estimators, two
-diagnostics, and a planted answer recovered every time. The estimator was
+diagnostics, and an answer we can check because we planted it. The estimator was
 never the hard part.

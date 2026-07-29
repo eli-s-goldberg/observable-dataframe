@@ -22,17 +22,19 @@ shipping data to a server.
 
 ## `observable-dataframe/data` — Healthcare primitives
 
-**Case:** Real-shaped eligibility + medical + pharmacy joined at `person_id`,
-small enough for the browser, honest enough for method development.
+**Case:** A simulated eligibility + medical + pharmacy panel joined at
+`person_id`, small enough for the browser, shaped closely enough to utilization
+for method development.
 
 | Export | Motivating case | Guide |
 |--------|-----------------|-------|
+| `simulateClaimsPanel` | Overdispersed, zero-heavy, skewed panel with a known effect | [API](./api/data#simulate-claims-panel-options) |
 | `claimsSliceFromCSV` | Member-month panel as typed DataFrame | [Data panel](./data-panel) |
 | `memberRollup` | Who drives utilization in the slice? | [Data panel](./data-panel) |
 | `monthlyTrend` | Cohort-level seasonality check | [Data panel](./data-panel) |
 
-The loader emits a synthetic panel of the same shape when no local sample is
-present, so preview works without any private extract.
+The docs loader generates the panel from a seed, so preview and build work with
+no private extract and give the same panel on every checkout.
 
 ## `observable-dataframe/stats` — Proof
 

@@ -68,7 +68,7 @@ JSDoc.
 | `observable-dataframe/stats` | t-tests, `ols`, `ancova`, `fitOLS` (HC1/cluster SEs), the DiD family (`did`, `twfe`, `eventStudy`, `callawaySantAnna`), `powerAnalysis`, `tableOne`, `DistP` Monte Carlo distributions, `kde`, stepped-wedge machinery, the `ExperimentDesign` system |
 | `observable-dataframe/plots` | ~25 plot primitives, `(data, options) => figure`; see the tour below |
 | `observable-dataframe/layouts` | `injectPageStyle`, `splitPanel`, `tabPanel`, `kpiCard`, table formatters for `Inputs.table` |
-| `observable-dataframe/data` | member-month claims slice helpers for the docs panel |
+| `observable-dataframe/data` | member-month claims panel: simulate it, parse it, roll it up |
 
 Every example below that touches the core or stats modules runs as written;
 paste it into a page or a Node script and it works.
@@ -321,12 +321,21 @@ splitPanel(leftFigure, rightProse, { ratio: 0.6 });
 
 ## /data: the claims panel
 
-Helpers for the member-month claims slice used throughout the docs:
+Helpers for the member-month claims panel used throughout the docs:
 `claimsSliceFromCSV(text)` parses the panel with correct dtypes,
 `enrolledMemberMonths(df)` filters to enrolled rows, `memberRollup(df)` and
-`monthlyTrend(df)` aggregate per member and per month. The panel the docs read
-is produced by a data loader that emits a synthetic slice of the right shape
-when no local sample is present, so the docs site previews with no extract.
+`monthlyTrend(df)` aggregate per member and per month.
+
+`simulateClaimsPanel(options)` generates the panel itself, from a seed. It draws
+member intensity from a gamma distribution, mixes it into Poisson counts, forces
+a share of member-months to no utilization, and gives spend a lognormal tail, so
+the counts come out overdispersed and skewed the way utilization is rather than
+smooth. It plants a treatment effect across staggered adoption cohorts by
+thinning encounters, which leaves the untreated counterfactual intact for every
+treated cell, so the returned `truth` is the average treatment effect on the
+treated measured rather than assumed. Nothing it emits is real. The docs loader
+calls it at a fixed seed, so the site builds identically on every checkout with
+no extract anywhere.
 
 ## Built to be built on
 
@@ -359,9 +368,9 @@ The docs site (`docs/`) is published to
 the guide pages (DataFrame tour, DiD walkthrough, data panel, module catalog),
 the [benchmarks](https://eli-s-goldberg.github.io/observable-dataframe/benchmarks),
 the [plot gallery](https://eli-s-goldberg.github.io/observable-dataframe/gallery),
-and the per-module API reference in `docs/api/`. Data loaders emit synthetic
-panels when no local extract is present, so the site builds from a clean
-checkout with no data at all.
+and the per-module API reference in `docs/api/`. Every data loader generates its
+own data from a seed, so the site builds from a clean checkout with no data at
+all.
 
 ## Acknowledgments
 
