@@ -36,3 +36,5 @@ export { pictogramFill } from "./pictogram.js";
 export { eventStudyPlot } from "./eventStudyPlot.js";
 export { didPlot } from "./didPlot.js";
 export { consortDiagram } from "./consortDiagram.js";
+export { summaryBoxPlot } from "./summaryBoxPlot.js";
+export { intervalTimeline } from "./intervalTimeline.js";

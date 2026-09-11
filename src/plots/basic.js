@@ -334,6 +334,8 @@ export function distPlot(
  * @param {string} options.upper CI upper bound column
  * @param {string} [options.pValue] optional p-value column; significant rows get the clinical red
  * @param {number} [options.alpha=0.05] significance cutoff for coloring
+ * @param {number|null} [options.reference=0] null line: 0 for differences, 1 for ratios, null to omit
+ * @param {string|Function} [options.stroke] optional interval/point color channel; defaults to significance coloring
  * @param {"ascending"|"descending"|null} [options.sort="ascending"]
  * @param {boolean|Function|object} [options.tip=true] tooltip on the point estimates
  * @param {object} [options.pLabel] styling for the p-value annotations:
@@ -350,6 +352,8 @@ export function forestPlot(
     upper,
     pValue,
     alpha = 0.05,
+    reference = 0,
+    stroke,
     sort = "ascending",
     tip = true,
     pLabel = {},
@@ -389,12 +393,12 @@ export function forestPlot(
     x: { label: value, ...tufteAxis },
     y: { label: null, domain: rows.map((r) => r[category]), tickSize: 0 },
     marks: [
-      Plot.ruleX([0], { stroke: colors.faint, strokeDasharray: "3,3" }),
-      Plot.link(rows, { x1: lower, x2: upper, y1: category, y2: category, stroke: sig, strokeWidth: 1.5 }),
+      ...(reference == null ? [] : [Plot.ruleX([reference], { stroke: colors.faint, strokeDasharray: "3,3" })]),
+      Plot.link(rows, { x1: lower, x2: upper, y1: category, y2: category, stroke: stroke ?? sig, strokeWidth: 1.5 }),
       Plot.dot(rows, {
         x: value,
         y: category,
-        fill: sig,
+        fill: stroke ?? sig,
         r: 4,
         ...resolveTip(
           tip,

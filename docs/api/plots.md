@@ -260,6 +260,76 @@ display(P.eventStudyPlot([
 ], { height: 220, yLabel: "effect" }));
 ```
 
+## Supplied uncertainty and observation windows
+
+### summaryBoxPlot(data, options)
+
+Draw already-computed quartiles and interval endpoints without reconstructing
+observations. Unlike `boxPlot`, this function does not calculate IQR fences or
+classify outliers. The numeric `position` column supports adjacent groups at a
+shared month or other continuous x coordinate; `boxWidth` uses x-axis data units.
+An optional `estimate` point remains distinct from the supplied median.
+
+```js echo
+display(P.summaryBoxPlot([
+  { position: 0.85, lower: 0.12, q1: 0.22, median: 0.30, q3: 0.39, upper: 0.61, observed: 0.32, group: "A" },
+  { position: 1.15, lower: 0.18, q1: 0.31, median: 0.43, q3: 0.57, upper: 0.88, observed: 0.45, group: "B" },
+], {
+  estimate: "observed", stroke: "group", boxWidth: 0.22,
+  width: 640, height: 260, color: { legend: true },
+  x: { label: "Time", domain: [0.5, 1.5], ticks: [1] },
+  y: { label: "Rate", zero: true },
+}));
+```
+
+The example is synthetic. Box bounds are `q1`/`q3`; the center is `median`;
+whiskers are exactly `lower`/`upper`. A caller displaying bootstrap percentile
+intervals must label their coverage and resampling unit. This renderer neither
+estimates confidence nor infers sample size. It rejects missing, nonfinite or
+unordered summaries rather than silently dropping them. Collapsed intervals
+are valid, and the optional estimate need not fall inside the interval.
+
+### intervalTimeline(data, options)
+
+Intervals can use finite numeric endpoints, including negative relative time,
+or valid `Date` values on a UTC scale. A zero-length interval becomes a diamond.
+Each row has `row`, `start` and `end` by default; column names are configurable.
+`label` is opt-in; supply short labels or use tooltips for narrow intervals.
+
+```js echo
+display(P.intervalTimeline([
+  { row: "Baseline", start: -90, end: 0 },
+  { row: "Index", start: 0, end: 0 },
+  { row: "Follow-up", start: 1, end: 91 },
+], {
+  width: 640, height: 230,
+  x: { domain: [-90, 91], label: "Relative day (right endpoints exclusive)" },
+}));
+```
+
+Endpoint inclusion is a caller-supplied contract: this example's baseline
+includes days −90 through −1 and follow-up includes days 1 through 90. The
+function does not alter endpoints, add claims lag, or infer enrollment. It
+rejects reversed intervals and mixed numeric/Date endpoint types. It accepts
+either row arrays or DataFrames, as does `summaryBoxPlot`.
+
+### forestPlot reference and series colors
+
+Use `reference: 1` with a log x scale for ratios, retain the default `reference: 0`
+for differences, or pass `reference: null` to omit the reference line. An explicit
+`stroke` color/channel controls both intervals and points; when omitted, existing
+p-value-based coloring remains unchanged.
+
+```js echo
+display(P.forestPlot([
+  { label: "Synthetic comparison", effect: 1.4, low: 0.8, high: 2.3 },
+], {
+  category: "label", value: "effect", lower: "low", upper: "high",
+  reference: 1, stroke: P.colors.operational,
+  x: { type: "log", domain: [0.5, 3], label: "Rate ratio" },
+}));
+```
+
 ## Writing your own primitive
 
 The house pattern, start to finish: normalize input with `asRows`, style
