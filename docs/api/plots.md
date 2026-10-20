@@ -282,3 +282,43 @@ function lollipop(data, { x, y, tip = true, width = 480, height = 200, ...option
 }
 display(lollipop([{ k: "a", v: 4 }, { k: "b", v: 7 }, { k: "c", v: 2 }], { x: "k", y: "v" }));
 ```
+
+## Monthly code recurrence
+
+`tufteMonthlyHeatmap(data, options)` accepts a DataFrame or plain rows and returns
+an HTML figure with a count/percentage toggle. Pass `toggle: false` for an SVG
+in the selected `mode: "count" | "percent"` (default `"count"`).
+
+```js echo
+const recurrenceRows = [
+  {code: "A", date: "2024-01-03", enc: "v1"},
+  {code: "A", date: "2024-01-03", enc: "v1"}, // duplicate claim line
+  {code: "B", date: "2024-01-03", enc: "v1"},
+  {code: "B", date: "2024-01-18", enc: "v2"},
+  {code: "A", date: "2024-03-03", enc: "v3"},
+];
+display(P.tufteMonthlyHeatmap(DataFrame.fromRows(recurrenceRows), {
+  width: Math.max(760, Math.min(1100, width)),
+  meta: new Map([["A", {label: "Example recurring code"}], ["B", {label: "Example intermittent code"}]]),
+}));
+```
+
+January shows A on 1 of 2 distinct encounters (50%) and B on 2 of 2 (100%).
+Duplicate code/encounter records count once, using their earliest date. The
+percentage denominator is **all distinct encounters in the supplied data for that
+UTC calendar month**, not claim lines or the sum of code counts. Co-occurring codes
+mean percentages across rows can exceed 100% when added together. Filter to one
+member before calling; encounter identifiers must be unique within that input.
+Filtering out codes can also remove encounters and change the denominator.
+
+Pale cells show zero occurrences in a month with other encounters. Dots show no
+encounters in the supplied data; neither proves absence of disease or care.
+Percentage mode always uses a fixed 0–100% scale; counts share a linear scale
+across all rows. Switching modes preserves first-appearance order, earliest at
+bottom, and horizontal scroll position. Native cell titles show numerator,
+denominator and percentage in either mode.
+
+Options: `code`, `date`, and `encounter` map column names (defaults `"code"`,
+`"date"`, `"enc"`); `meta` is a Map from code to `{label?, block?}`. Appearance
+options are `width` (1100), `rowH` (46), `title`, `ink`, and `faint`. Small screens
+scroll horizontally; long histories expand to keep monthly cells readable.
