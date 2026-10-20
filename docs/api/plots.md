@@ -322,3 +322,45 @@ Options: `code`, `date`, and `encounter` map column names (defaults `"code"`,
 `"date"`, `"enc"`); `meta` is a Map from code to `{label?, block?}`. Appearance
 options are `width` (1100), `rowH` (46), `title`, `ink`, and `faint`. Small screens
 scroll horizontally; long histories expand to keep monthly cells readable.
+
+## Branching member history
+
+`tufteJourney(data, options)` returns an SVG showing individual encounters along
+code lanes. It accepts a DataFrame or plain rows and shares the monthly heatmap's
+first-appearance order, earliest at the bottom. Filter to one member before calling;
+encounter IDs must uniquely identify encounters within that input.
+
+```js echo
+const journeyRows = [
+  {code: "A", date: "2024-01-03", enc: "j1", setting: "Office"},
+  {code: "A", date: "2024-03-08", enc: "j2", setting: "ER"},
+  {code: "B", date: "2024-03-08", enc: "j2", setting: "ER"},
+  {code: "B", date: "2024-06-15", enc: "j3", setting: "Office"},
+];
+const journeyMeta = new Map([
+  ["A", {label: "Earlier recorded code", chapter: "Example group"}],
+  ["B", {label: "Later recorded code", chapter: "Example group"}],
+]);
+display(P.tufteJourney(DataFrame.fromRows(journeyRows), {
+  meta: journeyMeta, width: Math.max(760, Math.min(1100, width)),
+}));
+```
+
+Column options are `code`, `date`, `encounter`, and `setting`, defaulting to
+`"code"`, `"date"`, `"enc"`, and `"setting"`. Dates display in UTC. `meta` maps
+codes to `{label?, block?, chapter?}`. Appearance options are `width` (1100,
+minimum 760), `rowH` (46, minimum 40), `title`, `accent`, `ink`, and `faint`.
+Use an `overflow-x: auto` container on small screens.
+
+Routine contacts are small ticks. ER, ED, emergency and inpatient settings
+(case insensitive) use an accent dot. Duplicate code/encounter rows retain the
+earliest date and acute status if any duplicate is acute. Hover titles provide
+exact dates and full labels.
+
+A branch selects the most recently introduced strictly earlier code in the same
+block, otherwise the same chapter, otherwise one sharing the child's onset
+encounter. Missing metadata does not match. Simultaneous onsets and unrelated
+codes remain independent. Branches attach within the parent's recorded span.
+These are inferred coding associations, **not clinical progression**; lane spans
+do not establish continuous disease activity. Supply the same rows to
+`tufteMonthlyHeatmap` for an aggregated companion with the same ordering.

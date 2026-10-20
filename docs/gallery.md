@@ -461,3 +461,31 @@ Pale cells indicate zero occurrences in a month with other encounters; dots
 indicate no encounters in the supplied data. Percentages use all distinct
 encounters in that month's input. Codes can co-occur, so row percentages are
 not parts of a sum. See the [API contract](./api/plots#monthly-code-recurrence).
+
+## Branching history and monthly recurrence
+
+The same synthetic records shown as individual contacts and monthly counts.
+Rows share first-appearance order; red dots in the journey mark acute contacts.
+
+```js echo
+import { tufteJourney } from "observable-dataframe/plots";
+const branchingRows = [
+  {code: "A", date: "2024-01-03", enc: "b1", setting: "Office"},
+  {code: "A", date: "2024-03-08", enc: "b2", setting: "ER"},
+  {code: "B", date: "2024-03-08", enc: "b2", setting: "ER"},
+  {code: "B", date: "2024-06-15", enc: "b3", setting: "Office"},
+  {code: "C", date: "2024-06-15", enc: "b3", setting: "Office"},
+];
+const branchingMeta = new Map([
+  ["A", {label: "First recorded code", chapter: "Example group"}],
+  ["B", {label: "Related later code", chapter: "Example group"}],
+  ["C", {label: "Code sharing an encounter"}],
+]);
+const branchingOptions = {meta: branchingMeta, width: Math.max(760, Math.min(1100, width))};
+display(tufteJourney(DataFrame.fromRows(branchingRows), branchingOptions));
+display(tufteMonthlyHeatmap(DataFrame.fromRows(branchingRows), branchingOptions));
+```
+
+Branches suggest coding associations, not clinical progression. A lane connects
+recorded contacts without implying continuous disease activity. See the
+[API contract](./api/plots#branching-member-history) for the parent rule and options.

@@ -38,3 +38,4 @@ export { didPlot } from "./didPlot.js";
 export { consortDiagram } from "./consortDiagram.js";
 
 export { tufteMonthlyHeatmap } from "./tufteMonthlyHeatmap.js";
+export { tufteJourney } from "./tufteJourney.js";
