@@ -425,3 +425,39 @@ const gauge = pictogramFill({
 });
 display(gauge.node);
 ```
+
+## Monthly recurrence: volume and share
+
+A synthetic member history with regular contacts, intermittent codes, and a late
+burst. The buttons switch between distinct encounter counts and the percentage
+of each month's encounters carrying each code. Both views keep the same rows.
+
+```js echo
+import { tufteMonthlyHeatmap } from "observable-dataframe/plots";
+const monthlyRows = Array.from({length: 24}, (_, month) => {
+  if ([5, 16].includes(month)) return []; // no encounters in supplied data
+  return Array.from({length: month > 19 ? 4 : 2}, (_, visit) => {
+    const date = new Date(Date.UTC(2023, month, 4 + visit * 5));
+    const enc = `${month}-${visit}`;
+    return [
+      {code: "A", date, enc},
+      ...(month >= 3 && visit === 0 ? [{code: "B", date, enc}] : []),
+      ...(month >= 12 && month % 3 === 0 ? [{code: "C", date, enc}] : []),
+    ];
+  }).flat();
+}).flat();
+display(tufteMonthlyHeatmap(DataFrame.fromRows(monthlyRows), {
+  width: Math.max(760, Math.min(1100, width)),
+  title: "The rhythm of recorded care",
+  meta: new Map([
+    ["A", {label: "Regularly recorded code"}],
+    ["B", {label: "Once per observed month"}],
+    ["C", {label: "Intermittently recorded code"}],
+  ]),
+}));
+```
+
+Pale cells indicate zero occurrences in a month with other encounters; dots
+indicate no encounters in the supplied data. Percentages use all distinct
+encounters in that month's input. Codes can co-occur, so row percentages are
+not parts of a sum. See the [API contract](./api/plots#monthly-code-recurrence).
